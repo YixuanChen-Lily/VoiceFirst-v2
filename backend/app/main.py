@@ -12,6 +12,7 @@ def _get_allowed_origins() -> List[str]:
     if raw:
         return [origin.strip() for origin in raw.split(",") if origin.strip()]
     return [
+        "*",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:3002",
