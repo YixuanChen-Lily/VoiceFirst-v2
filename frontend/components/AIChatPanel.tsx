@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useProposal } from './ProposalContext';
 import type { ProposalData } from './ProposalContext';
 import { chatWithAssistant, transcribeAudio, type ConversationMessage } from '../lib/api';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface AIChatPanelProps {
   currentSection: number;
@@ -201,6 +202,17 @@ const FIELD_LABELS: Partial<Record<ProposalFieldKey, string>> = {
   risksMitigation: 'Risk Mitigation Strategy',
 };
 
+const QUICK_START_SECTION_NAMES: Partial<Record<ProposalFieldKey, string>> = {
+  projectTitle: 'Cover Page',
+  organizationName: 'Cover Page',
+  executiveSummary: 'Executive Summary',
+  communityBackground: 'Community Context',
+  needsChallenges: 'Community Context',
+  problemDescription: 'Problem Statement',
+  expectedOutcomes: 'Expected Outcomes',
+  objective1: 'Project Description',
+};
+
 export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AIChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -319,23 +331,7 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
       }
 
       if (updatedLabels.length === 0) {
-        const fallbackField = config.fallback;
-        if (fallbackField) {
-          const trimmedReply = assistantReply.trim();
-          if (trimmedReply) {
-            updates[fallbackField] = trimmedReply;
-            updatedLabels.push(FIELD_LABELS[fallbackField] ?? fallbackField);
-          }
-        }
-      }
-
-      if (updatedLabels.length === 0) {
-        return;
-      }
-
-      if (section === 0) {
-        const hasSubstantialContent = Object.values(updates).some((value) => value.length >= 40);
-        if (!hasSubstantialContent) {
+        if (section === 0) {
           setMessages((prev) => [
             ...prev,
             {
@@ -348,15 +344,73 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
           ]);
           return;
         }
+
+        const fallbackField = config.fallback;
+        if (fallbackField) {
+          const trimmedReply = assistantReply.trim();
+          if (trimmedReply) {
+            updates[fallbackField] = trimmedReply;
+            updatedLabels.push(FIELD_LABELS[fallbackField] ?? fallbackField);
+          }
+        }
+
+        if (updatedLabels.length === 0) {
+          return;
+        }
+      }
+
+      if (section === 0) {
+        const essentialFields: Array<{ key: keyof ProposalData; minLength: number }> = [
+          { key: 'projectTitle', minLength: 5 },
+          { key: 'executiveSummary', minLength: 40 },
+          { key: 'communityBackground', minLength: 40 },
+          { key: 'problemDescription', minLength: 40 },
+          { key: 'expectedOutcomes', minLength: 40 },
+          { key: 'objective1', minLength: 30 },
+        ];
+
+        const meaningfulCount = essentialFields.reduce((count, { key, minLength }) => {
+          const value = updates[key];
+          if (value && value.trim().length >= minLength) {
+            return count + 1;
+          }
+          return count;
+        }, 0);
+
+        if (meaningfulCount === 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `${Date.now()}-quickstart-insufficient`,
+              type: 'system',
+              content:
+                "I'm still missing enough detail to draft your proposal. Share at least one or two sentences about your project goal, who benefits, or the challenge you're tackling so I can start filling things in for you.",
+              timestamp: new Date(),
+            },
+          ]);
+          return;
+        }
       }
 
       const labelSummary = updatedLabels.length === 1 ? updatedLabels[0] : updatedLabels.join(', ');
-      const actionText =
-        section === 0
-          ? `Quick-start draft ready for ${labelSummary}. Apply these AI-generated details to jumpstart your proposal?`
-          : updatedLabels.length === 1
+      let actionText: string;
+      if (section === 0) {
+        const sectionNames = Array.from(
+          new Set(
+            Object.keys(updates)
+              .map((key) => QUICK_START_SECTION_NAMES[key as ProposalFieldKey])
+              .filter((name): name is string => Boolean(name)),
+          ),
+        );
+        const sectionSummary =
+          sectionNames.length > 0 ? sectionNames.join(', ') : 'multiple sections';
+        actionText = `Quick-start drafted updates for ${sectionSummary}. Apply these AI-generated details to jumpstart your proposal?`;
+      } else {
+        actionText =
+          updatedLabels.length === 1
             ? `The assistant drafted an update for ${labelSummary}.`
             : `The assistant drafted updates for ${labelSummary}.`;
+      }
 
       const actionMessage: Message = {
         id: `${Date.now()}-auto-fill`,
@@ -717,9 +771,9 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
           )}
         </p>
         {/* Show uploaded documents count */}
-        {isQuickStartComplete && (data.communityDocuments.length > 0 || data.fundingDocuments.length > 0) && (
-          <p className="text-xs text-emerald-700 flex items-center gap-2 mt-1">
-            📚 RAG Context: {data.communityDocuments.length} community doc{data.communityDocuments.length !== 1 ? 's' : ''}, {data.fundingDocuments.length} funding doc{data.fundingDocuments.length !== 1 ? 's' : ''}
+        {isQuickStartComplete && (
+          <p className="text-xs text-emerald-700 flex items-center gap-2 mt-1 opacity-70">
+            📚 RAG Context: Coming soon — you'll be able to upload documents to personalize responses even more.
           </p>
         )}
       </div>
@@ -907,17 +961,19 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
         </div>
 
         {/* Upload Button */}
-        <Button
-          variant="outline"
-          onClick={handleFileUpload}
-          className="w-full gap-2 border-2 border-stone-300 hover:border-emerald-400 hover:bg-emerald-50"
-        >
-          <Upload className="w-4 h-4" />
-          📎 Upload Documents for RAG Context
-        </Button>
-        <p className="text-xs text-center text-stone-500 mt-2">
-          Upload community plans, past proposals, or funding guidelines
-        </p>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger className="w-full">
+              <div className="w-full gap-2 border-2 border-dashed border-stone-300 text-stone-500 text-sm py-3 rounded-md flex items-center justify-center cursor-not-allowed bg-stone-100">
+                <Upload className="w-4 h-4" />
+                📎 Coming Soon: Upload Documents for RAG Context
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs text-xs">
+              We're enhancing how the assistant uses your attachments. Stay tuned—soon you'll be able to upload community and funding documents directly from here.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

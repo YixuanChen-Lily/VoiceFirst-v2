@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000/api';
+const FALLBACK_API_BASE_URL = (process.env.NEXT_PUBLIC_DEFAULT_API_BASE_URL ?? 'http://127.0.0.1:8000/api').replace(/\/$/, '');
 
 export interface DraftAnalysis {
   section: string;
@@ -8,15 +8,15 @@ export interface DraftAnalysis {
 }
 
 export interface ProposalPayload {
-  projectTitle: string;
-  organizationName: string;
-  submissionDate?: string;
-  executiveSummary?: string;
-  communityBackground?: string;
-  problemDescription?: string;
+  project_title: string;
+  organization_name: string;
+  submission_date?: string;
+  executive_summary?: string;
+  community_background?: string;
+  problem_description?: string;
   objectives?: string[];
   milestones?: string[];
-  requestedAmount?: string;
+  requested_amount?: string;
   risks?: string;
 }
 
@@ -52,7 +52,7 @@ export interface SynthesisResponse {
 }
 
 const apiBaseUrl =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || DEFAULT_API_BASE_URL;
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') || FALLBACK_API_BASE_URL;
 
 function buildUrl(path: string) {
   return `${apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
@@ -153,4 +153,35 @@ export async function synthesizeSpeech(
   });
 
   return handleResponse<SynthesisResponse>(response);
+}
+
+export async function exportProposalDoc(
+  payload: ProposalPayload,
+  attachments: File[],
+): Promise<Blob> {
+  const formData = new FormData();
+  formData.append('payload', JSON.stringify(payload));
+  attachments.forEach((file) => {
+    formData.append('attachments', file, file.name);
+  });
+
+  const response = await fetch(buildUrl('/proposals/export'), {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = response.statusText || 'Request failed';
+    try {
+      const data = await response.json();
+      if (data?.detail) {
+        message = typeof data.detail === 'string' ? data.detail : message;
+      }
+    } catch {
+      // ignore parse issues
+    }
+    throw new Error(message);
+  }
+
+  return response.blob();
 }

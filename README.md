@@ -20,7 +20,7 @@ npm install
 npm run dev
 ```
 
-By default the development server runs on `http://localhost:3000`. Configure `NEXT_PUBLIC_API_BASE_URL` in a `.env.local` file if the API is not reachable at `http://127.0.0.1:8000/api`.
+By default the development server runs on `http://localhost:3000`. Configure `NEXT_PUBLIC_API_BASE_URL` in a `.env.local` file if the API is not reachable at `http://127.0.0.1:8000/api`, or change `NEXT_PUBLIC_DEFAULT_API_BASE_URL` if you want to adjust the fallback URL baked into the client bundle.
 
 ### Backend
 
@@ -42,7 +42,8 @@ Required secrets:
 
 - `OPENAI_API_KEY` – used by the backend to call the Chat Completions API.
 - `ELEVENLABS_API_KEY` – used for speech-to-text and text-to-speech.
-- `NEXT_PUBLIC_API_BASE_URL` – optional override for the frontend; defaults to `http://127.0.0.1:8000/api`.
+- `NEXT_PUBLIC_API_BASE_URL` – optional override for the frontend.
+- `NEXT_PUBLIC_DEFAULT_API_BASE_URL` – fallback base URL used when no override is set (defaults to `http://127.0.0.1:8000/api`).
 - `CORS_ALLOW_ORIGINS` – optional comma-separated list of frontend origins allowed to call the backend (defaults to local ports 3000 and 3002).
 
 Optional tuning variables (set in the backend environment):

@@ -16,7 +16,7 @@ import { AIChatPanel } from './AIChatPanel';
 import { Button } from './ui/button';
 import { Save, FileDown, ArrowLeft, Menu } from 'lucide-react';
 import { useProposal } from './ProposalContext';
-import { submitProposal } from '../lib/api';
+import { exportProposalDoc, submitProposal } from '../lib/api';
 
 interface ProposalBuilderProps {
   onBack: () => void;
@@ -27,6 +27,7 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
   const [currentSection, setCurrentSection] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
   const totalSections = 12;
   const { data } = useProposal();
@@ -76,6 +77,46 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
       requested_amount: data.requestedAmount || undefined,
       risks: data.risksMitigation || undefined,
     };
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    setSubmitStatus(null);
+
+    try {
+      const payload = buildPayload();
+      const attachments: File[] = [...data.communityDocuments, ...data.fundingDocuments];
+      if (existingDraft) {
+        attachments.push(existingDraft);
+      }
+      const blob = await exportProposalDoc(payload, attachments);
+      const safeTitle = payload.project_title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'proposal';
+      const filename = `${safeTitle}-draft-proposal.docx`;
+      downloadBlob(blob, filename);
+      setSubmitStatus('Proposal exported successfully.');
+    } catch (error) {
+      setSubmitStatus(
+        error instanceof Error
+          ? `Unable to export proposal: ${error.message}`
+          : 'Unable to export proposal. Please try again.',
+      );
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -194,7 +235,7 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
                 size="lg"
                 className="gap-2 border-sky-600 text-sky-700 hover:bg-sky-50"
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isExporting}
               >
                 <Save className="w-5 h-5" />
                 {isSubmitting ? 'Saving...' : 'Save Draft'}
@@ -202,11 +243,11 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
               <Button
                 size="lg"
                 className="gap-2 bg-sky-700 hover:bg-sky-800"
-                onClick={handleSubmit}
-                disabled={isSubmitting}
+                onClick={handleExport}
+                disabled={isSubmitting || isExporting}
               >
                 <FileDown className="w-5 h-5" />
-                {isSubmitting ? 'Processing...' : 'Export Proposal'}
+                {isExporting ? 'Preparing...' : 'Export Proposal'}
               </Button>
             </div>
             {submitStatus && (
