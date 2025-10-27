@@ -20,6 +20,34 @@ export interface ProposalPayload {
   risks?: string;
 }
 
+interface ProposalRequestPayload {
+  project_title: string;
+  organization_name: string;
+  submission_date?: string;
+  executive_summary?: string;
+  community_background?: string;
+  problem_description?: string;
+  objectives?: string[];
+  milestones?: string[];
+  requested_amount?: string;
+  risks?: string;
+}
+
+function serializeProposalPayload(payload: ProposalPayload): ProposalRequestPayload {
+  return {
+    project_title: payload.projectTitle,
+    organization_name: payload.organizationName,
+    submission_date: payload.submissionDate,
+    executive_summary: payload.executiveSummary,
+    community_background: payload.communityBackground,
+    problem_description: payload.problemDescription,
+    objectives: payload.objectives,
+    milestones: payload.milestones,
+    requested_amount: payload.requestedAmount,
+    risks: payload.risks,
+  };
+}
+
 export interface ProposalResponse {
   message: string;
   proposal_id: string;
@@ -102,7 +130,7 @@ export async function submitProposal(payload: ProposalPayload): Promise<Proposal
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(serializeProposalPayload(payload)),
   });
 
   return handleResponse<ProposalResponse>(response);

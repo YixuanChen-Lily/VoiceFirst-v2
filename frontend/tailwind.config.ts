@@ -1,14 +1,7 @@
 import type { Config } from "tailwindcss";
 
-const withOpacityValue =
-  (variableName: string) =>
-  ({ opacityValue }: { opacityValue?: string }) => {
-    if (opacityValue === undefined) {
-      return `var(${variableName})`;
-    }
-    const percentage = Math.round(Number(opacityValue) * 100);
-    return `color-mix(in oklch, var(${variableName}) ${percentage}%, transparent)`;
-  };
+const withOpacityValue = (variableName: string) =>
+  `hsl(var(${variableName}) / <alpha-value>)`;
 
 const config: Config = {
   darkMode: ["class"],

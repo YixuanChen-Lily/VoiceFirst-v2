@@ -16,7 +16,7 @@ import { AIChatPanel } from './AIChatPanel';
 import { Button } from './ui/button';
 import { Save, FileDown, ArrowLeft, Menu } from 'lucide-react';
 import { useProposal } from './ProposalContext';
-import { exportProposalDoc, submitProposal } from '../lib/api';
+import { exportProposalDoc, submitProposal, type ProposalPayload } from '../lib/api';
 
 interface ProposalBuilderProps {
   onBack: () => void;
@@ -51,7 +51,7 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const buildPayload = () => {
+  const buildPayload = (): ProposalPayload => {
     const objectives = [data.objective1, data.objective2, data.objective3].filter(
       (value): value is string => Boolean(value?.trim()),
     );
@@ -66,15 +66,15 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
     const organizationName = data.organizationName.trim() || 'Unknown Organization';
 
     return {
-      project_title: projectTitle,
-      organization_name: organizationName,
-      submission_date: data.submissionDate || undefined,
-      executive_summary: data.executiveSummary || undefined,
-      community_background: data.communityBackground || undefined,
-      problem_description: data.problemDescription || undefined,
+      projectTitle,
+      organizationName,
+      submissionDate: data.submissionDate || undefined,
+      executiveSummary: data.executiveSummary || undefined,
+      communityBackground: data.communityBackground || undefined,
+      problemDescription: data.problemDescription || undefined,
       objectives,
       milestones,
-      requested_amount: data.requestedAmount || undefined,
+      requestedAmount: data.requestedAmount || undefined,
       risks: data.risksMitigation || undefined,
     };
   };
