@@ -1,0 +1,6 @@
+# requirements.txt (root)
+pip>=24.2
+setuptools>=68
+wheel>=0.43
+
+-r backend/requirements.txt
