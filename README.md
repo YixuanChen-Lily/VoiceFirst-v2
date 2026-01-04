@@ -67,3 +67,8 @@ Optional tuning variables (set in the backend environment):
 - Persist uploaded files in object storage (e.g., S3) and surface asynchronous job progress through WebSockets or polling as needed.
 - Harden error handling and add unit/integration tests for both apps once the data model stabilises.
 - Experiment with different OpenAI or ElevenLabs models/voices by adjusting the environment variables noted above.
+
+## Demo
+Uploading an existing proposal gives heuristics score. 
+<img width="1867" height="883" alt="image" src="https://github.com/user-attachments/assets/63d72fa4-293b-4c4d-9f2c-f84f953fdbd8" />
+
