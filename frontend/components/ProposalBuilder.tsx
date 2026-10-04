@@ -101,7 +101,7 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
         attachments.push(existingDraft);
       }
       const blob = await exportProposalDoc(payload, attachments);
-      const safeTitle = payload.project_title
+      const safeTitle = payload.projectTitle
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '') || 'proposal';

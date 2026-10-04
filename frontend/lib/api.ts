@@ -8,15 +8,15 @@ export interface DraftAnalysis {
 }
 
 export interface ProposalPayload {
-  project_title: string;
-  organization_name: string;
-  submission_date?: string;
-  executive_summary?: string;
-  community_background?: string;
-  problem_description?: string;
+  projectTitle: string;
+  organizationName: string;
+  submissionDate?: string;
+  executiveSummary?: string;
+  communityBackground?: string;
+  problemDescription?: string;
   objectives?: string[];
   milestones?: string[];
-  requested_amount?: string;
+  requestedAmount?: string;
   risks?: string;
 }
 
@@ -188,7 +188,7 @@ export async function exportProposalDoc(
   attachments: File[],
 ): Promise<Blob> {
   const formData = new FormData();
-  formData.append('payload', JSON.stringify(payload));
+  formData.append('payload', JSON.stringify(serializeProposalPayload(payload)));
   attachments.forEach((file) => {
     formData.append('attachments', file, file.name);
   });
