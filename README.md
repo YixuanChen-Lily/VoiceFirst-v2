@@ -48,8 +48,9 @@ Required secrets:
 
 Optional tuning variables (set in the backend environment):
 
-- `OPENAI_CHAT_MODEL` (default `gpt-4o-mini`)
-- `ELEVENLABS_VOICE_ID` (default `Rachel`)
+- `OPENAI_CHAT_MODEL` (default `gpt-6-luna`) — chat and field extraction
+- `OPENAI_ANALYSIS_MODEL` (default `gpt-6.1-sol`) — draft analysis
+- `ELEVENLABS_VOICE_ID` (default `EXAVITQu4vr4xnSDxMaL`, the "Sarah" voice; must be a voice ID, not a name)
 - `ELEVENLABS_TTS_MODEL_ID` / `ELEVENLABS_STT_MODEL_ID`
 - `ELEVENLABS_TTS_BASE_URL` (default `https://api.elevenlabs.io/v1/text-to-speech`)
 - `ELEVENLABS_STT_ENDPOINT` (default `https://api.elevenlabs.io/v1/speech-to-text`)
