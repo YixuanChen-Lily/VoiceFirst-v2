@@ -23,7 +23,8 @@ router = APIRouter(prefix="/proposals", tags=["proposals"])
 logger = logging.getLogger(__name__)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+OPENAI_CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-6-luna")
+OPENAI_ANALYSIS_MODEL = os.getenv("OPENAI_ANALYSIS_MODEL", "gpt-6.1-sol")
 
 
 class DraftAnalysis(BaseModel):
@@ -151,8 +152,7 @@ async def _analyze_with_openai(text: str) -> List[DraftAnalysis]:
 
     def _run_completion():
         return client.chat.completions.create(
-            model=OPENAI_CHAT_MODEL,
-            temperature=0.2,
+            model=OPENAI_ANALYSIS_MODEL,
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": system_prompt},
