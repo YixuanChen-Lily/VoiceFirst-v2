@@ -1,11 +1,11 @@
 import React from 'react';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
-import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
-import { Label } from './ui/label';
+import { Input } from '../ui/input';
+import { Textarea } from '../ui/textarea';
+import { Label } from '../ui/label';
 import { Target } from 'lucide-react';
-import { useProposal } from './ProposalContext';
+import { useProposal } from '../../context/ProposalContext';
 
 export function ProjectDescriptionSection() {
   const { data, updateField } = useProposal();

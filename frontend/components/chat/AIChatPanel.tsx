@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { 
   Mic, 
   Upload, 
@@ -13,10 +13,10 @@ import {
   Loader
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useProposal } from './ProposalContext';
-import type { ProposalData } from './ProposalContext';
-import { chatWithAssistant, transcribeAudio, type ConversationMessage } from '../lib/api';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { useProposal } from '../../context/ProposalContext';
+import type { ProposalData } from '../../context/ProposalContext';
+import { chatWithAssistant, transcribeAudio, type ConversationMessage } from '../../lib/api';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface AIChatPanelProps {
   currentSection: number;

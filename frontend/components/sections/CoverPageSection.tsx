@@ -1,10 +1,10 @@
 import React from 'react';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import { FileText } from 'lucide-react';
-import { useProposal } from './ProposalContext';
+import { useProposal } from '../../context/ProposalContext';
 
 export function CoverPageSection() {
   const { data, updateField } = useProposal();

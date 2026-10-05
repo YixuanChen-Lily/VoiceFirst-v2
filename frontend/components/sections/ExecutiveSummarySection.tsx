@@ -1,10 +1,10 @@
 import React from 'react';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
-import { Textarea } from './ui/textarea';
-import { Label } from './ui/label';
+import { Textarea } from '../ui/textarea';
+import { Label } from '../ui/label';
 import { FileText } from 'lucide-react';
-import { useProposal } from './ProposalContext';
+import { useProposal } from '../../context/ProposalContext';
 
 export function ExecutiveSummarySection() {
   const { data, updateField } = useProposal();

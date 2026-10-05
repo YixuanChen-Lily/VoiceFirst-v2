@@ -1,11 +1,11 @@
 import React from 'react';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
-import { Textarea } from './ui/textarea';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { Textarea } from '../ui/textarea';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import { Settings } from 'lucide-react';
-import { useProposal } from './ProposalContext';
+import { useProposal } from '../../context/ProposalContext';
 
 export function ImplementationSection() {
   const { data, updateField, updateMultipleFields } = useProposal();
