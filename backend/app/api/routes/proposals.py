@@ -95,7 +95,7 @@ async def analyze_draft(file: UploadFile = File(...)) -> List[DraftAnalysis]:
 @router.post("/export")
 async def export_proposal(
     payload: str = Form(...),
-    attachments: Optional[List[UploadFile]] = File(None),
+    attachments: List[UploadFile] = File(default_factory=list),
 ):
     try:
         data = json.loads(payload)
@@ -108,7 +108,7 @@ async def export_proposal(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     attachment_blobs = []
-    for upload in attachments or []:
+    for upload in attachments:
         content = await upload.read()
         attachment_blobs.append(
             {
