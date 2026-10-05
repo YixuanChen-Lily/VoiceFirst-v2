@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
-import { DocumentUploadSection } from './DocumentUploadSection';
-import { CoverPageSection } from './CoverPageSection';
-import { ExecutiveSummarySection } from './ExecutiveSummarySection';
-import { CommunityContextSection } from './CommunityContextSection';
-import { ProblemStatementSection } from './ProblemStatementSection';
-import { ProjectDescriptionSection } from './ProjectDescriptionSection';
-import { ImplementationSection } from './ImplementationSection';
-import { BudgetSection } from './BudgetSection';
-import { OutcomesSection } from './OutcomesSection';
-import { AlignmentSection } from './AlignmentSection';
-import { RiskManagementSection } from './RiskManagementSection';
-import { AttachmentsSection } from './AttachmentsSection';
+import { DocumentUploadSection } from './sections/DocumentUploadSection';
+import { CoverPageSection } from './sections/CoverPageSection';
+import { ExecutiveSummarySection } from './sections/ExecutiveSummarySection';
+import { CommunityContextSection } from './sections/CommunityContextSection';
+import { ProblemStatementSection } from './sections/ProblemStatementSection';
+import { ProjectDescriptionSection } from './sections/ProjectDescriptionSection';
+import { ImplementationSection } from './sections/ImplementationSection';
+import { BudgetSection } from './sections/BudgetSection';
+import { OutcomesSection } from './sections/OutcomesSection';
+import { AlignmentSection } from './sections/AlignmentSection';
+import { RiskManagementSection } from './sections/RiskManagementSection';
+import { AttachmentsSection } from './sections/AttachmentsSection';
 import { ProgressTracker } from './ProgressTracker';
-import { AIChatPanel } from './AIChatPanel';
+import { AIChatPanel } from './chat/AIChatPanel';
 import { Button } from './ui/button';
 import { Save, FileDown, ArrowLeft, Menu } from 'lucide-react';
-import { useProposal } from './ProposalContext';
+import { useProposal } from '../context/ProposalContext';
 import { exportProposalDoc, submitProposal, type ProposalPayload } from '../lib/api';
 
 interface ProposalBuilderProps {

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
-import { Textarea } from './ui/textarea';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Button } from './ui/button';
+import { Textarea } from '../ui/textarea';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Button } from '../ui/button';
 import { MapPin, Upload, Info } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { useProposal } from './ProposalContext';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { useProposal } from '../../context/ProposalContext';
 
 export function CommunityContextSection() {
   const [fileName, setFileName] = useState<string | null>(null);

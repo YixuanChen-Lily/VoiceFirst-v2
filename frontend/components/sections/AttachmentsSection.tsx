@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
-import { Button } from './ui/button';
-import { Checkbox } from './ui/checkbox';
-import { Label } from './ui/label';
+import { Button } from '../ui/button';
+import { Checkbox } from '../ui/checkbox';
+import { Label } from '../ui/label';
 import { Paperclip, Upload, Plus, X } from 'lucide-react';
 
 interface Attachment {
