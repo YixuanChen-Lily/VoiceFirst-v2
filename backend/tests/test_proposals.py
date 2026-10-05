@@ -3,7 +3,6 @@ from io import BytesIO
 from zipfile import ZipFile
 
 import httpx
-import pytest
 
 from .conftest import OPENAI_CHAT_URL, openai_completion, sent_json
 
@@ -163,10 +162,6 @@ def test_export_builds_a_docx(client):
     assert "<dc:title>Riverbend Youth Hub &amp; Café</dc:title>" in core
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Known bug: any upload in `attachments` is rejected with a 422 before the handler runs.",
-)
 def test_export_includes_attachments(client):
     response = _export(
         client,
