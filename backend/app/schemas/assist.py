@@ -28,6 +28,10 @@ class ChatResponse(BaseModel):
     message: str
     audio_base64: Optional[str] = None
     field_updates: Optional[Dict[str, str]] = None
+    model: Optional[str] = Field(
+        default=None,
+        description="The chat model the router selected for this turn."
+    )
 
 
 class SynthesisRequest(BaseModel):

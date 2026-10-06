@@ -42,6 +42,7 @@ def test_chat_returns_reply_filtered_fields_and_audio(client, mock_api):
         "message": "Noted the title.",
         "audio_base64": base64.b64encode(AUDIO).decode(),
         "field_updates": {"projectTitle": "Riverbend Youth Hub"},
+        "model": "test-chat-model",
     }
 
     sent = sent_json(openai)
@@ -109,8 +110,7 @@ def test_chat_uses_the_requested_voice(client, mock_api):
     assert custom.called
 
 
-def test_chat_fails_when_text_to_speech_is_rejected(client, mock_api):
-    # Current behaviour: a TTS error fails the whole chat turn.
+def test_chat_returns_the_reply_without_audio_when_text_to_speech_is_rejected(client, mock_api):
     mock_api.post(OPENAI_CHAT_URL).mock(return_value=openai_completion("Hi."))
     mock_api.post(TTS_URL_PREFIX + "test-voice").mock(
         return_value=httpx.Response(404, text="voice_not_found")
@@ -118,18 +118,31 @@ def test_chat_fails_when_text_to_speech_is_rejected(client, mock_api):
 
     response = client.post("/api/assist/chat", json={"message": "Hi"})
 
-    assert response.status_code == 502
-    assert response.json()["detail"] == "Text-to-speech failed: voice_not_found"
+    assert response.status_code == 200
+    assert response.json()["message"] == "Hi."
+    assert response.json()["audio_base64"] is None
 
 
-def test_chat_survives_a_text_to_speech_network_error(client, mock_api):
+def test_chat_returns_the_reply_without_audio_on_a_text_to_speech_network_error(client, mock_api):
     mock_api.post(OPENAI_CHAT_URL).mock(return_value=openai_completion("Hi."))
     mock_api.post(TTS_URL_PREFIX + "test-voice").mock(side_effect=httpx.ConnectError("down"))
 
     response = client.post("/api/assist/chat", json={"message": "Hi"})
 
     assert response.status_code == 200
-    assert response.json() == {"message": "Hi.", "audio_base64": None, "field_updates": None}
+    assert response.json()["message"] == "Hi."
+    assert response.json()["audio_base64"] is None
+
+
+def test_tts_endpoint_still_reports_text_to_speech_errors(client, mock_api):
+    mock_api.post(TTS_URL_PREFIX + "test-voice").mock(
+        return_value=httpx.Response(404, text="voice_not_found")
+    )
+
+    response = client.post("/api/assist/tts", json={"text": "Hi"})
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Text-to-speech failed: voice_not_found"
 
 
 def test_tts_returns_base64_audio(client, mock_api):

@@ -15,7 +15,10 @@ os.environ.update(
         "OPENAI_API_KEY": "test-openai-key",
         "ELEVENLABS_API_KEY": "test-elevenlabs-key",
         "OPENAI_CHAT_MODEL": "test-chat-model",
+        "OPENAI_COMPLEX_CHAT_MODEL": "test-complex-chat-model",
         "OPENAI_ANALYSIS_MODEL": "test-analysis-model",
+        # Empty so the chat router is off unless a test turns it on.
+        "TYPESAFE_API_KEY": "",
         "ELEVENLABS_VOICE_ID": "test-voice",
         "ELEVENLABS_TTS_MODEL_ID": "test-tts-model",
         "ELEVENLABS_STT_MODEL_ID": "test-stt-model",
