@@ -50,6 +50,9 @@ Optional tuning variables (set in the backend environment):
 
 - `OPENAI_CHAT_MODEL` (default `gpt-6-luna`) — chat and field extraction
 - `OPENAI_ANALYSIS_MODEL` (default `gpt-6.1-sol`) — draft analysis
+- `OPENAI_COMPLEX_CHAT_MODEL` (default `gpt-6.1-sol`) — chat turns the router judges to need writing or advice
+- `TYPESAFE_API_KEY` — enables the Jev chat router; without it every chat turn uses `OPENAI_CHAT_MODEL`
+- `TYPESAFE_ROUTER_MODEL` (default `jev-1.13.0`) and `CHAT_ROUTER_THRESHOLD` (default `0.5`)
 - `ELEVENLABS_VOICE_ID` (default `EXAVITQu4vr4xnSDxMaL`, the "Sarah" voice; must be a voice ID, not a name)
 - `ELEVENLABS_TTS_MODEL_ID` / `ELEVENLABS_STT_MODEL_ID`
 - `ELEVENLABS_TTS_BASE_URL` (default `https://api.elevenlabs.io/v1/text-to-speech`)
