@@ -21,7 +21,10 @@ async def analyze_draft(file: UploadFile = File(...)) -> List[DraftAnalysis]:
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-    extracted_text = document_parsing_service.extract_text(content)
+    try:
+        extracted_text = document_parsing_service.extract_text(content, file.filename or "")
+    except document_parsing_service.DocumentParsingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not extracted_text.strip():
         raise HTTPException(
             status_code=400,
