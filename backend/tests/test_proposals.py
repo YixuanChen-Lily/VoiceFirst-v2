@@ -52,7 +52,7 @@ def test_analyze_returns_model_scores(client, mock_api):
     assert [m["role"] for m in sent["messages"]] == ["system", "user"]
     # Whitespace in the draft is collapsed before it is sent.
     assert sent["messages"][1]["content"].endswith(
-        "Executive Summary We will build a youth hub. Budget We request $250,000. "
+        "Executive Summary We will build a youth hub. Budget We request $250,000."
     )
 
 
