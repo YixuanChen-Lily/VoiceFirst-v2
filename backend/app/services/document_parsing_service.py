@@ -1,4 +1,4 @@
-"""Turn uploaded files (PDF, Word .docx, plain text) into clean text."""
+"""Turn uploaded files (PDF, Word .docx, plain text) into clean text and LangChain documents."""
 
 import re
 from dataclasses import dataclass, field
@@ -6,11 +6,13 @@ from io import BytesIO
 from typing import List
 from zipfile import BadZipFile, ZipFile
 
-from docx import Document
+from docx import Document as WordDocument
 from docx.table import Table
 from docx.text.paragraph import Paragraph
-from pypdf import PdfReader
-from pypdf.errors import PyPdfError
+from langchain_community.document_loaders.parsers import PyPDFParser
+from langchain_core.documents import Document
+from langchain_core.documents.base import Blob
+from pypdf.errors import FileNotDecryptedError, PyPdfError
 
 PDF_MAGIC = b"%PDF-"
 ZIP_MAGIC = b"PK\x03\x04"
@@ -50,16 +52,29 @@ def extract_text(content: bytes, filename: str = "") -> str:
     return re.sub(r"\s+", " ", parse_document(content, filename).text)
 
 
+def to_langchain_documents(parsed: ParsedDocument) -> List[Document]:
+    """
+    Wrap parsed text as LangChain documents, ready for a text splitter.
+    A PDF becomes one document per page, tagged with its page number.
+    """
+    if parsed.kind == "pdf":
+        return [
+            Document(page_content=page, metadata={"page": number})
+            for number, page in enumerate(parsed.pages, start=1)
+            if page
+        ]
+    return [Document(page_content=parsed.text)]
+
+
 def _parse_pdf(content: bytes) -> ParsedDocument:
+    """Read a PDF page by page with LangChain's PDF parser."""
+    blob = Blob.from_data(content, mime_type="application/pdf")
     try:
-        reader = PdfReader(BytesIO(content))
-        if reader.is_encrypted and not reader.decrypt(""):
-            raise DocumentParsingError(
-                "This PDF is password-protected. Remove the password and upload it again."
-            )
-        pages = [_tidy(page.extract_text() or "") for page in reader.pages]
-    except DocumentParsingError:
-        raise
+        pages = [_tidy(page.page_content) for page in PyPDFParser(mode="page").lazy_parse(blob)]
+    except FileNotDecryptedError as exc:
+        raise DocumentParsingError(
+            "This PDF is password-protected. Remove the password and upload it again."
+        ) from exc
     except (PyPdfError, ValueError, KeyError, OSError) as exc:
         raise DocumentParsingError("This PDF could not be read. It may be damaged.") from exc
 
@@ -83,7 +98,7 @@ def _parse_docx(content: bytes) -> ParsedDocument:
         )
 
     try:
-        document = Document(BytesIO(content))
+        document = WordDocument(BytesIO(content))
     except Exception as exc:
         raise DocumentParsingError("This Word file could not be read. It may be damaged.") from exc
 

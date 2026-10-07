@@ -13,6 +13,10 @@ except ImportError:  # pragma: no cover
 from ..core import settings
 
 
+# Tests set this to a client with a fake transport so no request leaves the machine.
+http_client: Optional[Any] = None
+
+
 class UnexpectedOpenAIResponse(Exception):
     """The completion came back without the expected choices/message shape."""
 
@@ -26,7 +30,7 @@ def _get_client() -> OpenAI:
         raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured.")
     if OpenAI is None:
         raise HTTPException(status_code=500, detail="openai package not installed on server.")
-    return OpenAI(api_key=settings.OPENAI_API_KEY)
+    return OpenAI(api_key=settings.OPENAI_API_KEY, http_client=http_client)
 
 
 async def complete_chat(

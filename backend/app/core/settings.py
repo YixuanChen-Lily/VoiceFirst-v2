@@ -13,6 +13,16 @@ TYPESAFE_API_KEY = os.getenv("TYPESAFE_API_KEY")
 TYPESAFE_ROUTER_MODEL = os.getenv("TYPESAFE_ROUTER_MODEL", "jev-1.13.0")
 CHAT_ROUTER_THRESHOLD = float(os.getenv("CHAT_ROUTER_THRESHOLD", "0.5"))
 
+# Knowledge base: original files in Supabase Storage, records and embeddings in its Postgres.
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+SUPABASE_DB_URL = os.getenv("SUPABASE_DB_URL")
+SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "documents")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
+CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "150"))
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(20 * 1024 * 1024)))
+
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")
 ELEVENLABS_TTS_MODEL_ID = os.getenv("ELEVENLABS_TTS_MODEL_ID", "eleven_multilingual_v2")

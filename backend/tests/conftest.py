@@ -17,6 +17,13 @@ os.environ.update(
         "OPENAI_CHAT_MODEL": "test-chat-model",
         "OPENAI_COMPLEX_CHAT_MODEL": "test-complex-chat-model",
         "OPENAI_ANALYSIS_MODEL": "test-analysis-model",
+        "SUPABASE_URL": "https://test-project.supabase.co",
+        "SUPABASE_SERVICE_KEY": "test-supabase-key",
+        # Never the real database: tests swap in in-memory stand-ins.
+        "SUPABASE_DB_URL": "postgresql://user:pass@localhost:1/none",
+        "SUPABASE_BUCKET": "documents",
+        "CHUNK_SIZE": "200",
+        "CHUNK_OVERLAP": "40",
         # Empty so the chat router is off unless a test turns it on.
         "TYPESAFE_API_KEY": "",
         "ELEVENLABS_VOICE_ID": "test-voice",
@@ -27,11 +34,15 @@ os.environ.update(
     }
 )
 
+from types import SimpleNamespace  # noqa: E402
+
 import httpx  # noqa: E402
+import httpx2  # noqa: E402
 import pytest  # noqa: E402
 import respx  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
+from backend.app.clients import openai_client  # noqa: E402
 from backend.app.main import create_app  # noqa: E402
 
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
@@ -69,8 +80,54 @@ def client() -> TestClient:
     return TestClient(create_app())
 
 
+class FakeOpenAIRoute:
+    """
+    Stands in for OpenAI's chat endpoint. The OpenAI SDK sends requests with
+    httpx2, which respx cannot intercept, so it gets its own fake transport.
+    It mirrors the small part of the respx route API the tests use.
+    """
+
+    def __init__(self) -> None:
+        self.calls = []
+        self._response = None
+
+    def mock(self, return_value: httpx.Response) -> "FakeOpenAIRoute":
+        self._response = return_value
+        return self
+
+    @property
+    def called(self) -> bool:
+        return bool(self.calls)
+
+    def handle(self, request: httpx2.Request) -> httpx2.Response:
+        assert str(request.url) == OPENAI_CHAT_URL, f"Unexpected OpenAI request to {request.url}"
+        assert self._response is not None, "The app called OpenAI but the test did not mock it."
+        self.calls.append(SimpleNamespace(request=request))
+        return httpx2.Response(
+            self._response.status_code,
+            content=self._response.content,
+            headers={"content-type": "application/json"},
+        )
+
+
+class MockApi:
+    """Routes OpenAI mocks to the fake transport and everything else to respx."""
+
+    def __init__(self, router: respx.MockRouter, openai_route: FakeOpenAIRoute) -> None:
+        self._router = router
+        self._openai_route = openai_route
+
+    def post(self, url: str):
+        if url == OPENAI_CHAT_URL:
+            return self._openai_route
+        return self._router.post(url)
+
+
 @pytest.fixture
-def mock_api():
+def mock_api(monkeypatch):
     """Intercept every outbound HTTP call; unmocked calls fail the test."""
+    openai_route = FakeOpenAIRoute()
+    fake_client = httpx2.Client(transport=httpx2.MockTransport(openai_route.handle))
+    monkeypatch.setattr(openai_client, "http_client", fake_client)
     with respx.mock(assert_all_called=False) as router:
-        yield router
+        yield MockApi(router, openai_route)
