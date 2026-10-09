@@ -9,9 +9,8 @@ from zipfile import BadZipFile, ZipFile
 from docx import Document as WordDocument
 from docx.table import Table
 from docx.text.paragraph import Paragraph
-from langchain_community.document_loaders.parsers import PyPDFParser
 from langchain_core.documents import Document
-from langchain_core.documents.base import Blob
+from pypdf import PdfReader
 from pypdf.errors import FileNotDecryptedError, PyPdfError
 
 PDF_MAGIC = b"%PDF-"
@@ -67,10 +66,10 @@ def to_langchain_documents(parsed: ParsedDocument) -> List[Document]:
 
 
 def _parse_pdf(content: bytes) -> ParsedDocument:
-    """Read a PDF page by page with LangChain's PDF parser."""
-    blob = Blob.from_data(content, mime_type="application/pdf")
+    """Read a PDF page by page."""
     try:
-        pages = [_tidy(page.page_content) for page in PyPDFParser(mode="page").lazy_parse(blob)]
+        reader = PdfReader(BytesIO(content))
+        pages = [_tidy(page.extract_text() or "") for page in reader.pages]
     except FileNotDecryptedError as exc:
         raise DocumentParsingError(
             "This PDF is password-protected. Remove the password and upload it again."
