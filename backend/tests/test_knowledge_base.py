@@ -8,6 +8,7 @@ import pytest
 from backend.app.clients.document_store import DocumentRecord
 from backend.app.services import knowledge_service
 
+from .conftest import ADMIN, OTHER_STAFF, STAFF
 from .test_document_parsing import make_pdf
 
 STORAGE = "https://test-project.supabase.co/storage/v1"
@@ -30,11 +31,12 @@ class FakeDocumentStore:
     def get(self, document_id):
         return self.records.get(document_id)
 
-    def list(self, scope=None, proposal_id=None):
+    def list(self, visible_to, scope=None, proposal_id=None):
         return [
             record
             for record in self.records.values()
-            if (not scope or record.scope == scope)
+            if (record.scope == "library" or record.owner_id == visible_to)
+            and (not scope or record.scope == scope)
             and (not proposal_id or record.proposal_id == proposal_id)
         ]
 
@@ -64,22 +66,27 @@ class FakeVectorIndex:
     def remove(self, document_id, count):
         self.chunks.pop(document_id, None)
 
-    def search(self, query, proposal_id: Optional[str], k: int):
+    def search(self, query, owner_id: str, proposal_id: Optional[str], k: int):
         words = set(query.lower().split())
         visible = [
             chunk
             for chunks in self.chunks.values()
             for chunk in chunks
             if chunk.metadata["scope"] == "library"
-            or (proposal_id and chunk.metadata["proposal_id"] == proposal_id)
+            or (
+                proposal_id
+                and chunk.metadata["proposal_id"] == proposal_id
+                and chunk.metadata["owner_id"] == owner_id
+            )
         ]
         scored = [(chunk, 1.0 / (1 + len(words & set(chunk.page_content.lower().split())))) for chunk in visible]
         return sorted(scored, key=lambda pair: pair[1])[:k]
 
 
 @pytest.fixture
-def kb(monkeypatch, mock_api):
-    """Wire the service to in-memory stand-ins and mock Supabase Storage."""
+def kb(monkeypatch, mock_api, sign_in):
+    """Wire the service to in-memory stand-ins, mock Supabase Storage, and sign in as an admin."""
+    sign_in(ADMIN)
     store, index = FakeDocumentStore(), FakeVectorIndex()
     monkeypatch.setattr(knowledge_service, "get_document_store", lambda: store)
     monkeypatch.setattr(knowledge_service, "get_vector_index", lambda: index)
@@ -129,6 +136,7 @@ def test_upload_saves_the_original_then_indexes_it(client, kb):
         "document_id": body["id"],
         "scope": "library",
         "proposal_id": None,
+        "owner_id": "user-admin",
         "title": "Program Guidelines",
         "filename": "guidelines.txt",
         "doc_type": "guideline",
@@ -165,8 +173,9 @@ def test_search_returns_the_closest_passages_with_their_source(client, kb):
     assert results[0]["scope"] == "library"
 
 
-def test_proposal_documents_are_only_visible_to_their_own_proposal(client, kb):
+def test_proposal_documents_are_only_visible_to_their_uploader_and_proposal(client, kb, sign_in):
     _upload(client, b"Shared library note about budgets.", "library.txt")
+    sign_in(STAFF)
     _upload(client, b"Riverbend budget is confidential.", "ours.txt", scope="proposal", proposal_id="riverbend")
 
     def titles(**extra):
@@ -176,6 +185,36 @@ def test_proposal_documents_are_only_visible_to_their_own_proposal(client, kb):
     assert titles() == ["library.txt"]
     assert titles(proposal_id="someone-else") == ["library.txt"]
     assert titles(proposal_id="riverbend") == ["library.txt", "ours.txt"]
+
+    # Someone else naming the same proposal does not see the file, in search or in the list.
+    sign_in(OTHER_STAFF)
+    assert titles(proposal_id="riverbend") == ["library.txt"]
+    assert [item["filename"] for item in client.get("/api/documents").json()] == ["library.txt"]
+
+
+def test_only_admins_can_change_the_library(client, kb, sign_in):
+    document_id = _upload(client).json()["id"]
+
+    sign_in(STAFF)
+    assert _upload(client).status_code == 403
+    assert client.delete(f"/api/documents/{document_id}").status_code == 403
+    assert client.post(f"/api/documents/{document_id}/reindex").status_code == 403
+    assert document_id in kb["store"].records
+
+
+def test_staff_can_manage_their_own_proposal_documents_but_not_others(client, kb, sign_in):
+    sign_in(STAFF)
+    uploaded = _upload(client, scope="proposal", proposal_id="riverbend")
+    assert uploaded.status_code == 201
+    document_id = uploaded.json()["id"]
+    assert kb["store"].records[document_id].owner_id == "user-staff"
+
+    sign_in(OTHER_STAFF)
+    assert client.delete(f"/api/documents/{document_id}").status_code == 404
+    assert client.post(f"/api/documents/{document_id}/reindex").status_code == 404
+
+    sign_in(STAFF)
+    assert client.delete(f"/api/documents/{document_id}").status_code == 204
 
 
 def test_list_can_be_filtered_by_scope(client, kb):
@@ -248,7 +287,8 @@ def test_storage_failure_is_reported(client, kb):
     assert kb["store"].records == {}
 
 
-def test_missing_configuration_returns_503(client, monkeypatch):
+def test_missing_configuration_returns_503(client, monkeypatch, sign_in):
+    sign_in(ADMIN)
     monkeypatch.setattr(knowledge_service, "is_configured", lambda: False)
 
     assert client.get("/api/documents").status_code == 503

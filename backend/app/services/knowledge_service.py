@@ -36,6 +36,10 @@ class DocumentNotFound(Exception):
     pass
 
 
+class NotAllowed(Exception):
+    """The user may not change this document."""
+
+
 class IndexingFailed(Exception):
     """The file was saved but could not be indexed. The record is kept so it can be retried."""
 
@@ -87,6 +91,7 @@ def split_into_chunks(record: DocumentRecord, content: bytes) -> tuple[str, List
             "document_id": record.id,
             "scope": record.scope,
             "proposal_id": record.proposal_id,
+            "owner_id": record.owner_id,
             "title": record.title,
             "filename": record.filename,
             "doc_type": record.doc_type,
@@ -120,6 +125,7 @@ def ingest_document(
     filename: str,
     content_type: str,
     scope: str,
+    owner_id: str,
     title: Optional[str] = None,
     proposal_id: Optional[str] = None,
     doc_type: Optional[str] = None,
@@ -133,6 +139,7 @@ def ingest_document(
         id=document_id,
         scope=scope,
         proposal_id=proposal_id if scope == "proposal" else None,
+        owner_id=owner_id,
         title=(title or "").strip() or filename,
         filename=filename,
         content_type=content_type,
@@ -160,38 +167,49 @@ def ingest_document(
         raise
 
 
-def reindex_document(document_id: str) -> DocumentRecord:
-    """Rebuild a document's chunks from its stored original."""
-    _require_configured()
-    store = get_document_store()
-    record = store.get(document_id)
+def _get_changeable(document_id: str, owner_id: str, is_admin: bool) -> DocumentRecord:
+    """Library documents can be changed by admins; proposal documents by whoever uploaded them."""
+    record = get_document_store().get(document_id)
     if record is None:
         raise DocumentNotFound(document_id)
+    if record.scope == "library":
+        if not is_admin:
+            raise NotAllowed("Only library admins can change library documents.")
+    elif record.owner_id != owner_id:
+        # Do not reveal that someone else's document exists.
+        raise DocumentNotFound(document_id)
+    return record
+
+
+def reindex_document(document_id: str, owner_id: str, is_admin: bool) -> DocumentRecord:
+    """Rebuild a document's chunks from its stored original."""
+    _require_configured()
+    record = _get_changeable(document_id, owner_id, is_admin)
     content = storage.download(record.storage_path)
-    store.update(record.id, status="processing", error=None)
+    get_document_store().update(record.id, status="processing", error=None)
     return _index(record, content)
 
 
-def list_documents(scope: Optional[str] = None, proposal_id: Optional[str] = None) -> List[DocumentRecord]:
+def list_documents(
+    owner_id: str, scope: Optional[str] = None, proposal_id: Optional[str] = None
+) -> List[DocumentRecord]:
+    """The shared library plus this user's own uploads."""
     _require_configured()
-    return get_document_store().list(scope=scope, proposal_id=proposal_id)
+    return get_document_store().list(visible_to=owner_id, scope=scope, proposal_id=proposal_id)
 
 
-def delete_document(document_id: str) -> None:
+def delete_document(document_id: str, owner_id: str, is_admin: bool) -> None:
     _require_configured()
-    store = get_document_store()
-    record = store.get(document_id)
-    if record is None:
-        raise DocumentNotFound(document_id)
+    record = _get_changeable(document_id, owner_id, is_admin)
     get_vector_index().remove(record.id, record.chunk_count)
     storage.delete(record.storage_path)
-    store.delete(record.id)
+    get_document_store().delete(record.id)
 
 
-def search(query: str, proposal_id: Optional[str] = None, k: int = 5) -> List[SearchResult]:
-    """Find the passages closest in meaning to the query, from the library and this proposal."""
+def search(query: str, owner_id: str, proposal_id: Optional[str] = None, k: int = 5) -> List[SearchResult]:
+    """Find the passages closest in meaning to the query, from the library and this user's proposal."""
     _require_configured()
-    matches = get_vector_index().search(query, proposal_id=proposal_id, k=k)
+    matches = get_vector_index().search(query, owner_id=owner_id, proposal_id=proposal_id, k=k)
     return [
         SearchResult(
             document_id=chunk.metadata["document_id"],

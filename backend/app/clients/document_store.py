@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import Column, DateTime, Engine, Integer, MetaData, String, Table, Text, delete, insert, select, update
+from sqlalchemy import Column, DateTime, Engine, Integer, MetaData, String, Table, Text, delete, insert, or_, select, text, update
 
 metadata = MetaData()
 
@@ -15,6 +15,7 @@ documents = Table(
     Column("id", String(36), primary_key=True),
     Column("scope", String(20), nullable=False, index=True),  # "library" or "proposal"
     Column("proposal_id", String(100), nullable=True, index=True),
+    Column("owner_id", String(64), nullable=True, index=True),  # who uploaded it
     Column("title", Text, nullable=False),
     Column("filename", Text, nullable=False),
     Column("content_type", Text, nullable=False),
@@ -35,6 +36,7 @@ class DocumentRecord:
     id: str
     scope: str
     proposal_id: Optional[str]
+    owner_id: Optional[str]
     title: str
     filename: str
     content_type: str
@@ -57,6 +59,9 @@ class DocumentStore:
     def __init__(self, engine: Engine) -> None:
         self._engine = engine
         metadata.create_all(engine)
+        # create_all does not add columns to a table that already exists.
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE kb_documents ADD COLUMN IF NOT EXISTS owner_id VARCHAR(64)"))
 
     def create(self, record: DocumentRecord) -> DocumentRecord:
         with self._engine.begin() as connection:
@@ -68,8 +73,18 @@ class DocumentStore:
             row = connection.execute(select(documents).where(documents.c.id == document_id)).mappings().first()
         return DocumentRecord(**row) if row else None
 
-    def list(self, scope: Optional[str] = None, proposal_id: Optional[str] = None) -> List[DocumentRecord]:
-        query = select(documents).order_by(documents.c.created_at.desc())
+    def list(
+        self,
+        visible_to: str,
+        scope: Optional[str] = None,
+        proposal_id: Optional[str] = None,
+    ) -> List[DocumentRecord]:
+        """Library documents plus the documents this user uploaded."""
+        query = (
+            select(documents)
+            .where(or_(documents.c.scope == "library", documents.c.owner_id == visible_to))
+            .order_by(documents.c.created_at.desc())
+        )
         if scope:
             query = query.where(documents.c.scope == scope)
         if proposal_id:

@@ -13,6 +13,13 @@ TYPESAFE_API_KEY = os.getenv("TYPESAFE_API_KEY")
 TYPESAFE_ROUTER_MODEL = os.getenv("TYPESAFE_ROUTER_MODEL", "jev-1.13.0")
 CHAT_ROUTER_THRESHOLD = float(os.getenv("CHAT_ROUTER_THRESHOLD", "0.5"))
 
+# Sign-in (Supabase Auth). Every API route needs a signed-in user unless AUTH_DISABLED is true,
+# which is for local development only. Library admins may add and remove library documents.
+AUTH_DISABLED = os.getenv("AUTH_DISABLED", "").lower() in ("1", "true", "yes")
+LIBRARY_ADMIN_EMAILS = frozenset(
+    email.strip().lower() for email in os.getenv("LIBRARY_ADMIN_EMAILS", "").split(",") if email.strip()
+)
+
 # Knowledge base: original files in Supabase Storage, records and embeddings in its Postgres.
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
