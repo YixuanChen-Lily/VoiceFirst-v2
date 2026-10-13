@@ -86,6 +86,24 @@ function buildUrl(path: string) {
   return `${apiBaseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+type AccessTokenProvider = () => Promise<string | null>;
+
+let accessTokenProvider: AccessTokenProvider | null = null;
+
+/** Called by the sign-in layer so every backend request carries the user's token. */
+export function setAccessTokenProvider(provider: AccessTokenProvider | null) {
+  accessTokenProvider = provider;
+}
+
+async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  const token = accessTokenProvider ? await accessTokenProvider() : null;
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return fetch(buildUrl(path), { ...init, headers });
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let detail = response.statusText;
@@ -116,7 +134,7 @@ export async function analyzeDraft(file: File): Promise<DraftAnalysis[]> {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch(buildUrl('/proposals/analyze'), {
+  const response = await apiFetch('/proposals/analyze', {
     method: 'POST',
     body: formData,
   });
@@ -125,7 +143,7 @@ export async function analyzeDraft(file: File): Promise<DraftAnalysis[]> {
 }
 
 export async function submitProposal(payload: ProposalPayload): Promise<ProposalResponse> {
-  const response = await fetch(buildUrl('/proposals'), {
+  const response = await apiFetch('/proposals', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -139,7 +157,7 @@ export async function submitProposal(payload: ProposalPayload): Promise<Proposal
 export async function chatWithAssistant(
   payload: ChatRequestBody,
 ): Promise<ChatResponseBody> {
-  const response = await fetch(buildUrl('/assist/chat'), {
+  const response = await apiFetch('/assist/chat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -160,7 +178,7 @@ export async function transcribeAudio(
     new File([file], filename, { type: file.type || 'audio/webm' }),
   );
 
-  const response = await fetch(buildUrl('/assist/stt'), {
+  const response = await apiFetch('/assist/stt', {
     method: 'POST',
     body: formData,
   });
@@ -172,7 +190,7 @@ export async function synthesizeSpeech(
   text: string,
   voiceId?: string,
 ): Promise<SynthesisResponse> {
-  const response = await fetch(buildUrl('/assist/tts'), {
+  const response = await apiFetch('/assist/tts', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -193,7 +211,7 @@ export async function exportProposalDoc(
     formData.append('attachments', file, file.name);
   });
 
-  const response = await fetch(buildUrl('/proposals/export'), {
+  const response = await apiFetch('/proposals/export', {
     method: 'POST',
     body: formData,
   });

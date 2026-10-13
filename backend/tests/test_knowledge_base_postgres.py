@@ -32,6 +32,7 @@ def _record(**overrides) -> DocumentRecord:
         id=new_document_id(),
         scope="library",
         proposal_id=None,
+        owner_id="user-a",
         title="Guidelines",
         filename="guidelines.txt",
         content_type="text/plain",
@@ -54,8 +55,9 @@ def test_document_records_round_trip(engine):
     record = store.create(_record(scope="proposal", proposal_id="riverbend"))
 
     assert store.get(record.id) == record
-    assert record.id in [item.id for item in store.list(scope="proposal", proposal_id="riverbend")]
-    assert record.id not in [item.id for item in store.list(scope="library")]
+    assert record.id in [item.id for item in store.list("user-a", scope="proposal", proposal_id="riverbend")]
+    assert record.id not in [item.id for item in store.list("user-a", scope="library")]
+    assert record.id not in [item.id for item in store.list("user-b")]
 
     updated = store.update(record.id, status="ready", chunk_count=3, kind="text")
     assert (updated.status, updated.chunk_count, updated.kind) == ("ready", 3, "text")
@@ -68,29 +70,37 @@ def test_vector_index_adds_searches_by_scope_and_removes(engine):
     index = VectorIndex(engine, DeterministicFakeEmbedding(size=64))
     library_id, ours_id, theirs_id = new_document_id(), new_document_id(), new_document_id()
 
-    def chunk(text, document_id, scope, proposal_id=None):
-        metadata = {"document_id": document_id, "scope": scope, "proposal_id": proposal_id, "title": text}
+    def chunk(text, document_id, scope, proposal_id=None, owner_id="user-a"):
+        metadata = {
+            "document_id": document_id,
+            "scope": scope,
+            "proposal_id": proposal_id,
+            "owner_id": owner_id,
+            "title": text,
+        }
         return Document(page_content=text, metadata=metadata)
 
     index.add(library_id, [chunk("library passage one", library_id, "library"), chunk("library passage two", library_id, "library")])
     index.add(ours_id, [chunk("our proposal passage", ours_id, "proposal", "riverbend")])
-    index.add(theirs_id, [chunk("their proposal passage", theirs_id, "proposal", "other")])
+    index.add(theirs_id, [chunk("their proposal passage", theirs_id, "proposal", "riverbend", owner_id="user-b")])
 
-    def found(proposal_id):
+    def found(owner_id, proposal_id):
         mine = {library_id, ours_id, theirs_id}
-        hits = index.search("passage", proposal_id=proposal_id, k=50)
+        hits = index.search("passage", owner_id=owner_id, proposal_id=proposal_id, k=50)
         return sorted(doc.page_content for doc, _ in hits if doc.metadata["document_id"] in mine)
 
-    assert found(None) == ["library passage one", "library passage two"]
-    assert found("riverbend") == ["library passage one", "library passage two", "our proposal passage"]
+    assert found("user-a", None) == ["library passage one", "library passage two"]
+    assert found("user-a", "riverbend") == ["library passage one", "library passage two", "our proposal passage"]
+    # Same proposal id, different uploader: each person sees only their own file.
+    assert found("user-b", "riverbend") == ["library passage one", "library passage two", "their proposal passage"]
 
     # The identical text embeds identically, so it is the closest match.
-    top, distance = index.search("our proposal passage", proposal_id="riverbend", k=1)[0]
+    top, distance = index.search("our proposal passage", owner_id="user-a", proposal_id="riverbend", k=1)[0]
     assert top.page_content == "our proposal passage"
     assert distance == pytest.approx(0.0, abs=1e-6)
 
     index.remove(library_id, 2)
-    assert found("riverbend") == ["our proposal passage"]
+    assert found("user-a", "riverbend") == ["our proposal passage"]
 
     index.remove(ours_id, 1)
     index.remove(theirs_id, 1)

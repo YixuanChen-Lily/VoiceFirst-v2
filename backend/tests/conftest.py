@@ -22,6 +22,8 @@ os.environ.update(
         # Never the real database: tests swap in in-memory stand-ins.
         "SUPABASE_DB_URL": "postgresql://user:pass@localhost:1/none",
         "SUPABASE_BUCKET": "documents",
+        "LIBRARY_ADMIN_EMAILS": "admin@example.com",
+        "AUTH_DISABLED": "",
         "CHUNK_SIZE": "200",
         "CHUNK_OVERLAP": "40",
         # Empty so the chat router is off unless a test turns it on.
@@ -43,6 +45,7 @@ import respx  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from backend.app.clients import openai_client  # noqa: E402
+from backend.app.core.auth import User, get_current_user  # noqa: E402
 from backend.app.main import create_app  # noqa: E402
 
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
@@ -75,9 +78,38 @@ def sent_json(route: respx.Route, call_index: int = -1) -> dict:
     return json.loads(route.calls[call_index].request.content)
 
 
+STAFF = User(id="user-staff", email="staff@example.com", is_admin=False)
+OTHER_STAFF = User(id="user-other", email="other@example.com", is_admin=False)
+ADMIN = User(id="user-admin", email="admin@example.com", is_admin=True)
+
+
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(create_app())
+def app():
+    return create_app()
+
+
+@pytest.fixture
+def sign_in(app):
+    """Sign the test client in as a given user without a real token. Starts as STAFF."""
+    current = {"user": STAFF}
+    app.dependency_overrides[get_current_user] = lambda: current["user"]
+
+    def _sign_in(user: User) -> None:
+        current["user"] = user
+
+    return _sign_in
+
+
+@pytest.fixture
+def client(app, sign_in) -> TestClient:
+    """A client that is already signed in (as STAFF unless a test calls sign_in)."""
+    return TestClient(app)
+
+
+@pytest.fixture
+def anonymous_client(app) -> TestClient:
+    """A client with real sign-in checks and no token."""
+    return TestClient(app)
 
 
 class FakeOpenAIRoute:

@@ -14,12 +14,16 @@ def chunk_ids(document_id: str, count: int) -> List[str]:
     return [f"{document_id}:{index}" for index in range(count)]
 
 
-def scope_filter(proposal_id: Optional[str]) -> dict:
-    """Library documents are visible to every chat; proposal documents only to that proposal."""
+def scope_filter(owner_id: str, proposal_id: Optional[str]) -> dict:
+    """
+    Library documents are visible to every chat. A proposal's documents are
+    visible only to the person who uploaded them, and only for that proposal.
+    """
     library = {"scope": {"$eq": "library"}}
     if not proposal_id:
         return library
-    return {"$or": [library, {"proposal_id": {"$eq": proposal_id}}]}
+    own_proposal = {"$and": [{"proposal_id": {"$eq": proposal_id}}, {"owner_id": {"$eq": owner_id}}]}
+    return {"$or": [library, own_proposal]}
 
 
 class VectorIndex:
@@ -38,6 +42,10 @@ class VectorIndex:
         if count:
             self._store.delete(ids=chunk_ids(document_id, count))
 
-    def search(self, query: str, proposal_id: Optional[str], k: int) -> List[Tuple[Document, float]]:
+    def search(
+        self, query: str, owner_id: str, proposal_id: Optional[str], k: int
+    ) -> List[Tuple[Document, float]]:
         """Return the k closest chunks with their distance (lower is closer)."""
-        return self._store.similarity_search_with_score(query, k=k, filter=scope_filter(proposal_id))
+        return self._store.similarity_search_with_score(
+            query, k=k, filter=scope_filter(owner_id, proposal_id)
+        )

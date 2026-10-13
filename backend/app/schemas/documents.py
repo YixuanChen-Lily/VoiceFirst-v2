@@ -26,7 +26,7 @@ class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1)
     proposal_id: Optional[str] = Field(
         default=None,
-        description="Also search this proposal's own documents, not only the shared library.",
+        description="Also search the documents you uploaded for this proposal, not only the shared library.",
     )
     k: int = Field(default=5, ge=1, le=20)
 
