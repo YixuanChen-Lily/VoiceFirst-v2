@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
-import { setAccessTokenProvider } from '../lib/api';
+import { fetchCurrentUser, setAccessTokenProvider } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
@@ -11,6 +11,8 @@ interface AuthContextType {
   isLoading: boolean;
   email: string | null;
   isSignedIn: boolean;
+  /** True when the signed-in user may add and remove library documents. */
+  isAdmin: boolean;
   /** Email a one-time sign-in link. Resolves to an error message, or null on success. */
   sendSignInLink: (email: string) => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -31,6 +33,7 @@ function friendlyError(message: string): string {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(supabase));
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -57,6 +60,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // The backend decides who is an admin; ask it whenever the signed-in user changes.
+  const userId = session?.user.id ?? null;
+  useEffect(() => {
+    let cancelled = false;
+    setIsAdmin(false);
+    if (!userId) return;
+    fetchCurrentUser()
+      .then((user) => {
+        if (!cancelled) setIsAdmin(user.is_admin);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
   const sendSignInLink = useCallback(async (email: string) => {
     if (!supabase) return 'Sign-in is not configured.';
     const { error } = await supabase.auth.signInWithOtp({
@@ -80,10 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       email: session?.user.email ?? null,
       isSignedIn: Boolean(session),
+      isAdmin,
       sendSignInLink,
       signOut,
     }),
-    [isLoading, session, sendSignInLink, signOut],
+    [isAdmin, isLoading, session, sendSignInLink, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

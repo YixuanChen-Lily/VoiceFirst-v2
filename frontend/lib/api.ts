@@ -231,3 +231,89 @@ export async function exportProposalDoc(
 
   return response.blob();
 }
+
+export interface CurrentUser {
+  id: string;
+  email: string;
+  is_admin: boolean;
+}
+
+export async function fetchCurrentUser(): Promise<CurrentUser> {
+  const response = await apiFetch('/me');
+  return handleResponse<CurrentUser>(response);
+}
+
+export type DocumentScope = 'library' | 'proposal';
+export type DocumentStatus = 'processing' | 'ready' | 'failed';
+
+export interface KnowledgeDocument {
+  id: string;
+  scope: DocumentScope;
+  proposal_id: string | null;
+  title: string;
+  filename: string;
+  kind: string | null;
+  doc_type: string | null;
+  funder: string | null;
+  size_bytes: number;
+  status: DocumentStatus;
+  error: string | null;
+  chunk_count: number;
+  created_at: string;
+}
+
+export interface DocumentUploadOptions {
+  scope?: DocumentScope;
+  proposalId?: string;
+  title?: string;
+  docType?: string;
+  funder?: string;
+}
+
+/** Read the error message from a failed response, whatever shape the detail takes. */
+async function errorMessage(response: Response): Promise<string> {
+  try {
+    const payload = await response.json();
+    const detail = payload?.detail;
+    if (typeof detail === 'string') return detail;
+    if (typeof detail?.message === 'string') return detail.message;
+    if (Array.isArray(detail) && detail[0]?.msg) return detail[0].msg;
+  } catch {
+    // fall through to the status text
+  }
+  return response.statusText || 'Request failed';
+}
+
+export async function listDocuments(scope?: DocumentScope): Promise<KnowledgeDocument[]> {
+  const response = await apiFetch(scope ? `/documents?scope=${scope}` : '/documents');
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as KnowledgeDocument[];
+}
+
+export async function uploadDocument(
+  file: File,
+  options: DocumentUploadOptions = {},
+): Promise<KnowledgeDocument> {
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+  formData.append('scope', options.scope ?? 'library');
+  if (options.proposalId) formData.append('proposal_id', options.proposalId);
+  if (options.title?.trim()) formData.append('title', options.title.trim());
+  if (options.docType) formData.append('doc_type', options.docType);
+  if (options.funder?.trim()) formData.append('funder', options.funder.trim());
+
+  const response = await apiFetch('/documents', { method: 'POST', body: formData });
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as KnowledgeDocument;
+}
+
+export async function reindexDocument(documentId: string): Promise<KnowledgeDocument> {
+  const response = await apiFetch(`/documents/${documentId}/reindex`, { method: 'POST' });
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as KnowledgeDocument;
+}
+
+export async function deleteDocument(documentId: string): Promise<void> {
+  const response = await apiFetch(`/documents/${documentId}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error(await errorMessage(response));
+}
