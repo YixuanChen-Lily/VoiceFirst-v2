@@ -38,6 +38,9 @@ jobs:
         working-directory: frontend
         env:
           NEXT_PUBLIC_API_BASE_URL: https://voice-first-backend.azurewebsites.net/api
+          # Public values for sign-in, stored as repository variables (not secrets).
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           npm ci
           npm run build
