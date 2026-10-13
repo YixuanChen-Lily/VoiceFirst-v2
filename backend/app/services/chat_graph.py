@@ -85,19 +85,40 @@ def route(state: ChatState) -> Literal["generate_simple", "generate_complex"]:
 
 
 async def _generate(state: ChatState, model: str) -> dict:
+    section = state.get("section")
     messages = list(state.get("history", []))
-    format_instruction = extraction_service.build_format_instruction(state.get("section"))
-    if format_instruction:
-        messages.append({"role": "system", "content": format_instruction})
+    instruction = extraction_service.build_extraction_instruction(section)
+    if instruction:
+        messages.append({"role": "system", "content": instruction})
     messages.append({"role": "user", "content": state["message"]})
 
-    try:
-        response_text = await openai_client.complete_chat(model=model, messages=messages) or ""
-    except openai_client.UnexpectedOpenAIResponse:
-        raise HTTPException(status_code=502, detail="Unexpected response from OpenAI.")
+    turn_model = extraction_service.build_turn_model(section)
+    if turn_model is None:
+        # No form section to fill: an ordinary reply.
+        try:
+            response_text = await openai_client.complete_chat(model=model, messages=messages) or ""
+        except openai_client.UnexpectedOpenAIResponse:
+            raise HTTPException(status_code=502, detail="Unexpected response from OpenAI.")
+        reply, field_updates = extraction_service.parse_structured_response(response_text)
+        return {"model": model, "reply": reply, "field_updates": field_updates}
 
-    reply, field_updates = extraction_service.parse_structured_response(response_text)
-    return {"model": model, "reply": reply, "field_updates": field_updates}
+    try:
+        turn = await openai_client.complete_structured(
+            model=model, messages=messages, response_model=turn_model
+        )
+    except openai_client.StructuredOutputFailed as exc:
+        if not exc.raw_text:
+            raise HTTPException(status_code=502, detail="The assistant could not reply. Try again.")
+        # Keep the conversation going with whatever the model said.
+        logger.warning("Structured reply failed for section %s; using the raw reply.", section)
+        reply, field_updates = extraction_service.parse_structured_response(exc.raw_text)
+        return {"model": model, "reply": reply, "field_updates": field_updates}
+
+    return {
+        "model": model,
+        "reply": turn.chat_reply,
+        "field_updates": extraction_service.to_field_updates(turn.field_updates),
+    }
 
 
 async def generate_simple(state: ChatState) -> dict:

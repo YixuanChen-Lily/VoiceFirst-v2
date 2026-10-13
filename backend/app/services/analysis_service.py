@@ -1,6 +1,5 @@
 """Draft analysis: score each proposal section with the model, or with keywords if that fails."""
 
-import json
 import logging
 from typing import List
 
@@ -8,7 +7,7 @@ from fastapi import HTTPException
 
 from ..clients import openai_client
 from ..core import settings
-from ..schemas.proposals import DraftAnalysis
+from ..schemas.proposals import DraftAnalysis, DraftAnalysisResult
 
 logger = logging.getLogger(__name__)
 
@@ -30,63 +29,28 @@ async def _analyze_with_openai(text: str) -> List[DraftAnalysis]:
 
     system_prompt = (
         "You are an expert grant reviewer. Assess the provided proposal text and "
-        "score each major section between 0 and 100. Return JSON with a `sections` "
-        "array. Each element must include `section`, `summary`, `recommendations` "
-        "(array of strings), and `score` (integer)."
+        "score each major section between 0 and 100, with a short summary and "
+        "actionable recommendations for each."
     )
 
-    payload = await openai_client.complete_chat(
+    result = await openai_client.complete_structured(
         model=settings.OPENAI_ANALYSIS_MODEL,
-        response_format={"type": "json_object"},
+        response_model=DraftAnalysisResult,
         messages=[
             {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": "Analyze the following proposal and respond with JSON only.\n\n" + condensed_text,
-            },
+            {"role": "user", "content": "Analyze the following proposal.\n\n" + condensed_text},
         ],
-    ) or "{}"
+    )
 
-    try:
-        data = json.loads(payload)
-    except json.JSONDecodeError as exc:  # pragma: no cover - propagate parse failure
-        raise ValueError("Unable to parse AI analysis response.") from exc
-
-    sections = data.get("sections")
-    if not isinstance(sections, list):
-        raise ValueError("AI analysis response missing sections array.")
-
-    results: List[DraftAnalysis] = []
-    for section in sections:
-        if not isinstance(section, dict):
-            continue
-        name = str(section.get("section") or section.get("name") or "Unknown Section")
-        summary = str(section.get("summary") or "")
-        recommendations = section.get("recommendations") or []
-        if not isinstance(recommendations, list):
-            recommendations = [str(recommendations)]
-
-        score_raw = section.get("score")
-        try:
-            score = int(float(score_raw))
-        except (TypeError, ValueError):
-            score = 0
-
-        score = max(0, min(100, score))
-
-        results.append(
-            DraftAnalysis(
-                section=name,
-                summary=summary,
-                recommendations=[str(rec) for rec in recommendations if str(rec).strip()],
-                score=score,
-            )
+    sections = [
+        section.model_copy(
+            update={"recommendations": [item.strip() for item in section.recommendations if item.strip()]}
         )
-
-    if not results:
+        for section in result.sections
+    ]
+    if not sections:
         raise ValueError("AI analysis did not return any sections.")
-
-    return results
+    return sections
 
 
 def _fallback_analysis(text: str) -> List[DraftAnalysis]:

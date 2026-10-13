@@ -1,7 +1,17 @@
-"""Structured field extraction: which fields each section may fill, and how replies are parsed."""
+"""
+Structured field extraction: which fields each section may fill, what each field
+means, and the reply shape the model must follow.
+
+Each section gets its own reply model, built from the two tables below. The model's
+reply is forced to match it through OpenAI structured outputs (via Instructor), so
+field names cannot be invented and every field is either text or empty.
+"""
 
 import json
-from typing import Dict, List, Optional
+from functools import lru_cache
+from typing import Dict, List, Optional, Type
+
+from pydantic import BaseModel, Field, create_model
 
 SECTION_FIELD_CONFIG: Dict[int, Dict[str, List[str]]] = {
     0: {
@@ -107,24 +117,126 @@ SECTION_FIELD_CONFIG: Dict[int, Dict[str, List[str]]] = {
 }
 
 
-def build_format_instruction(section: Optional[int]) -> Optional[str]:
-    if section is None:
-        return None
+
+# What each form field holds. These descriptions are sent to the model with the
+# reply shape, so they are what it uses to decide where a piece of information goes.
+FIELD_DESCRIPTIONS: Dict[str, str] = {
+    # Cover page
+    "projectTitle": "The name of the project.",
+    "organizationName": "The applicant: the community, First Nation or organization submitting the proposal.",
+    "submissionDate": "The date the proposal will be submitted, as the user stated it.",
+    "contactName": "Full name of the main contact person for the proposal.",
+    "contactPhone": "Phone number of the main contact person.",
+    "contactEmail": "Email address of the main contact person.",
+    "contactAddress": "Mailing address of the applicant or contact person.",
+    "fundedBy": "The funder or funding program the proposal is addressed to.",
+    # Executive summary
+    "executiveSummary": "A short overview of the whole proposal: what is proposed, for whom, why, and how much is requested.",
+    # Community context
+    "communityName": "The name of the community the project serves.",
+    "population": "The community's population, as a number or short phrase.",
+    "communityBackground": "History, location and general description of the community.",
+    "economicBaseline": "The community's current economic situation: employment, main industries, income, businesses.",
+    "culturalContext": "Culture, language, traditions and values relevant to the project.",
+    "needsChallenges": "The needs, gaps and challenges the community faces that are relevant to the project.",
+    # Problem statement
+    "problemDescription": "The specific problem or opportunity the project addresses.",
+    "supportingEvidence": "Data, statistics, studies or examples that back up the problem statement.",
+    # Project description
+    "objective1": "The first project objective.",
+    "objective2": "The second project objective.",
+    "objective3": "The third project objective.",
+    "year1Activities": "Activities planned for the first year.",
+    "year2Activities": "Activities planned for the second year.",
+    "year3Activities": "Activities planned for the third year.",
+    # Implementation
+    "governanceStructure": "Who oversees the project and how decisions are made.",
+    "implementationResponsibilities": "Who is responsible for carrying out which parts of the project.",
+    "implementationPartnerships": "Partner organizations and what each contributes.",
+    "implementationRiskOverview": "A brief overview of risks to delivering the project on time and on budget.",
+    # Budget
+    "totalBudget": "The total cost of the project, as an amount of money.",
+    "requestedAmount": "The amount of funding requested from the funder.",
+    "communityContribution": "What the community or applicant contributes, in cash or in kind.",
+    "personnelBudget": "Budget for staff, wages and contractors.",
+    "equipmentBudget": "Budget for equipment, materials and renovations.",
+    "trainingBudget": "Budget for training and capacity building.",
+    "marketingBudget": "Budget for marketing, outreach and communications.",
+    "otherBudget": "Budget for costs that fit none of the other budget lines.",
+    "sustainabilityPlan": "How the project will be paid for and kept running after the funding ends.",
+    # Outcomes
+    "expectedOutcomes": "The results and benefits the project is expected to produce.",
+    "successIndicators": "Measurable indicators that will show the project succeeded.",
+    "dataCollectionPlan": "How data on those indicators will be collected.",
+    "evaluationPlan": "How and when the project will be evaluated.",
+    # Alignment
+    "communityAlignment": "How the project fits the community's own plans and priorities.",
+    "funderAlignment": "How the project fits the funder's priorities and program criteria.",
+    "longTermSustainability": "The lasting benefit of the project to the community over the long term.",
+    # Risk management
+    "risksMitigation": "The main risks to the project and how each will be reduced or handled.",
+}
+
+class ChatTurn(BaseModel):
+    """The shape of a reply when no section is being filled in."""
+
+    chat_reply: str
+
+
+@lru_cache(maxsize=None)
+def build_fields_model(section: int) -> Optional[Type[BaseModel]]:
+    """A model with one optional text field per form field the section may fill."""
     config = SECTION_FIELD_CONFIG.get(section)
     if not config:
         return None
-    allowed_fields = ", ".join(config["fields"])
+    fields = {
+        name: (Optional[str], Field(default=None, description=FIELD_DESCRIPTIONS[name]))
+        for name in config["fields"]
+    }
+    return create_model(f"Section{section}Fields", **fields)
+
+
+@lru_cache(maxsize=None)
+def build_turn_model(section: Optional[int]) -> Optional[Type[BaseModel]]:
+    """The reply shape for a section: what to say, plus that section's form fields."""
+    if section is None:
+        return None
+    fields_model = build_fields_model(section)
+    if fields_model is None:
+        return None
+    return create_model(
+        f"Section{section}ChatTurn",
+        chat_reply=(str, Field(description="The natural-language reply to say to the user.")),
+        field_updates=(
+            fields_model,
+            Field(description="Form fields to fill from this turn. Leave a field null unless this turn gives a value for it."),
+        ),
+    )
+
+
+def build_extraction_instruction(section: Optional[int]) -> Optional[str]:
+    """The system message that tells the model how to use the field_updates part of its reply."""
+    config = SECTION_FIELD_CONFIG.get(section) if section is not None else None
+    if not config:
+        return None
     description = config.get("description", "the current section")
     return (
-        f"You are extracting structured data for {description}. "
-        "Respond strictly with a JSON object shaped as "
-        '{"chat_reply": "<natural language response for the user>", '
-        '"field_updates": { "<field>": "<value>" }}. '
-        f"Only include keys in field_updates from this allowlist: {allowed_fields}. "
-        "If you have no structured updates, return an empty object for field_updates. "
-        "All field values must be plain strings without markdown or trailing commentary. "
-        "Do not wrap the JSON in code fences or include text outside the JSON object."
+        f"You are also filling in a proposal form: {description}. "
+        "Put what you say to the user in chat_reply. "
+        "In field_updates, set a field only when the user has given that information or asked you to "
+        "draft that field in this turn; leave every other field null. "
+        "Field values must be plain text without markdown or commentary."
     )
+
+
+def to_field_updates(fields: BaseModel) -> Optional[Dict[str, str]]:
+    """Turn a filled fields model into a name-to-text dictionary, without empty values."""
+    updates = {
+        name: value.strip()
+        for name, value in fields.model_dump().items()
+        if isinstance(value, str) and value.strip()
+    }
+    return updates or None
 
 
 def parse_structured_response(content: str) -> tuple[str, Optional[Dict[str, str]]]:

@@ -3,6 +3,7 @@ from io import BytesIO
 from zipfile import ZipFile
 
 import httpx
+import pytest
 
 from .conftest import OPENAI_CHAT_URL, openai_completion, sent_json
 
@@ -21,11 +22,9 @@ def test_analyze_returns_model_scores(client, mock_api):
                     "section": "Executive Summary",
                     "summary": "Clear.",
                     "recommendations": ["Add need.", "  "],
-                    "score": "72.6",
+                    "score": 72,
                 },
-                {"name": "Budget", "summary": "Thin.", "recommendations": "Itemise.", "score": 140},
-                {"section": "Outcomes", "score": None},
-                "not-a-section",
+                {"section": "Budget", "summary": "Thin.", "recommendations": [], "score": 40},
             ]
         }
     )
@@ -41,26 +40,48 @@ def test_analyze_returns_model_scores(client, mock_api):
             "recommendations": ["Add need."],
             "score": 72,
         },
-        {"section": "Budget", "summary": "Thin.", "recommendations": ["Itemise."], "score": 100},
-        {"section": "Outcomes", "summary": "", "recommendations": [], "score": 0},
+        {"section": "Budget", "summary": "Thin.", "recommendations": [], "score": 40},
     ]
 
     sent = sent_json(openai)
     assert sent["model"] == "test-analysis-model"
-    assert sent["response_format"] == {"type": "json_object"}
     assert "temperature" not in sent
     assert [m["role"] for m in sent["messages"]] == ["system", "user"]
     # Whitespace in the draft is collapsed before it is sent.
     assert sent["messages"][1]["content"].endswith(
         "Executive Summary We will build a youth hub. Budget We request $250,000."
     )
+    # The reply shape is sent to OpenAI as a structured-output schema.
+    assert sent["response_format"]["type"] == "json_schema"
+    schema = json.dumps(sent["response_format"]["json_schema"])
+    assert all(f'"{name}"' in schema for name in ("sections", "section", "summary", "recommendations", "score"))
+
+
+@pytest.mark.parametrize(
+    "bad_reply",
+    [
+        {"sections": [{"section": "Budget", "summary": "x", "recommendations": [], "score": 140}]},
+        {"sections": [{"section": "Budget", "summary": "x", "recommendations": [], "score": "high"}]},
+        {"sections": "none"},
+        {"something_else": []},
+    ],
+    ids=["score out of range", "score not a number", "sections not a list", "wrong shape"],
+)
+def test_analyze_falls_back_when_the_reply_does_not_match_the_shape(client, mock_api, bad_reply):
+    openai = mock_api.post(OPENAI_CHAT_URL).mock(return_value=openai_completion(json.dumps(bad_reply)))
+
+    response = _upload(client)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 7  # the keyword fallback always returns its seven sections
+    assert len(openai.calls) == 2  # asked once, then once more before giving up
 
 
 def test_analyze_truncates_long_drafts(client, mock_api):
     openai = mock_api.post(OPENAI_CHAT_URL).mock(
         return_value=openai_completion(json.dumps({"sections": [{"section": "A", "score": 1}]}))
     )
-    prefix = "Analyze the following proposal and respond with JSON only.\n\n"
+    prefix = "Analyze the following proposal.\n\n"
 
     _upload(client, b"x" * 20000)
 

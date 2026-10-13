@@ -18,6 +18,14 @@ class DraftAnalysis(BaseModel):
     )
 
 
+class DraftAnalysisResult(BaseModel):
+    """The shape the analysis model must reply in."""
+
+    sections: List[DraftAnalysis] = Field(
+        ..., description="One entry per major section present in the proposal."
+    )
+
+
 class ProposalPayload(BaseModel):
     project_title: str
     organization_name: str

@@ -49,11 +49,47 @@ def test_chat_returns_reply_filtered_fields_and_audio(client, mock_api):
     assert sent["model"] == "test-chat-model"
     assert [m["role"] for m in sent["messages"]] == ["assistant", "system", "user"]
     assert "Cover Page details" in sent["messages"][1]["content"]
-    assert "projectTitle" in sent["messages"][1]["content"]
     assert sent["messages"][2]["content"] == "Our project is Riverbend Youth Hub."
 
     assert sent_json(tts) == {"text": "Noted the title.", "model_id": "test-tts-model"}
     assert tts.calls[0].request.headers["xi-api-key"] == "test-elevenlabs-key"
+
+
+def test_chat_sends_the_sections_fields_as_a_structured_output_schema(client, mock_api):
+    openai = mock_api.post(OPENAI_CHAT_URL).mock(
+        return_value=openai_completion(json.dumps({"chat_reply": "Ok.", "field_updates": {}}))
+    )
+    _mock_tts(mock_api)
+
+    client.post("/api/assist/chat", json={"message": "Hi", "section": 4})
+
+    response_format = sent_json(openai)["response_format"]
+    assert response_format["type"] == "json_schema"
+    schema = json.dumps(response_format["json_schema"])
+    # Section 4 (problem statement) may fill exactly these two fields, each with a description.
+    assert '"problemDescription"' in schema and '"supportingEvidence"' in schema
+    assert "The specific problem or opportunity the project addresses." in schema
+    assert '"projectTitle"' not in schema and '"totalBudget"' not in schema
+
+
+def test_chat_without_a_fillable_section_sends_no_schema(client, mock_api):
+    openai = mock_api.post(OPENAI_CHAT_URL).mock(return_value=openai_completion("Hello."))
+    _mock_tts(mock_api)
+
+    for body in ({"message": "Hi"}, {"message": "Hi", "section": 11}):
+        client.post("/api/assist/chat", json=body)
+        assert "response_format" not in sent_json(openai)
+
+
+def test_chat_reports_a_failed_model_call(client, mock_api):
+    mock_api.post(OPENAI_CHAT_URL).mock(
+        return_value=httpx.Response(400, json={"error": {"message": "bad request"}})
+    )
+
+    response = client.post("/api/assist/chat", json={"message": "Hi", "section": 1})
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "The assistant could not reply. Try again."
 
 
 def test_chat_with_plain_text_reply_has_no_field_updates(client, mock_api):
