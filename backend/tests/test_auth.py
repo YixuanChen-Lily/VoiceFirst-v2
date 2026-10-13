@@ -133,3 +133,17 @@ def test_unreachable_key_server_is_a_503_not_a_401(anonymous_client, mock_api, m
     mock_api._router.get(JWKS_URL).mock(side_effect=httpx.ConnectError("down"))
 
     assert _save(anonymous_client, make_token()).status_code == 503
+
+
+def test_me_reports_the_signed_in_user_and_admin_status(anonymous_client, jwks):
+    def me(**claims):
+        token = make_token(**claims)
+        return anonymous_client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
+
+    assert me().json() == {"id": "user-123", "email": "staff@example.com", "is_admin": False}
+    assert me(sub="user-9", email="admin@example.com").json() == {
+        "id": "user-9",
+        "email": "admin@example.com",
+        "is_admin": True,
+    }
+    assert anonymous_client.get("/api/me").status_code == 401

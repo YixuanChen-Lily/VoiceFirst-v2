@@ -1,0 +1,311 @@
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowLeft, FileText, Library, Loader2, RefreshCw, Trash2, Upload } from 'lucide-react';
+
+import { useAuth } from '../../context/AuthContext';
+import {
+  deleteDocument,
+  listDocuments,
+  reindexDocument,
+  uploadDocument,
+  type KnowledgeDocument,
+} from '../../lib/api';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Card, CardContent } from '../ui/card';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+
+interface LibraryPageProps {
+  onBack: () => void;
+}
+
+const DOCUMENT_TYPES: { value: string; label: string }[] = [
+  { value: 'guideline', label: 'Program guideline' },
+  { value: 'policy', label: 'Policy' },
+  { value: 'funder_program', label: 'Funder program description' },
+  { value: 'template', label: 'Template or example' },
+  { value: 'other', label: 'Other' },
+];
+
+const TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  DOCUMENT_TYPES.map(({ value, label }) => [value, label]),
+);
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function StatusBadge({ document }: { document: KnowledgeDocument }) {
+  if (document.status === 'ready') {
+    return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Ready</Badge>;
+  }
+  if (document.status === 'processing') {
+    return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Processing</Badge>;
+  }
+  return (
+    <Badge className="bg-red-100 text-red-800 border-red-200" title={document.error ?? undefined}>
+      Failed
+    </Badge>
+  );
+}
+
+export function LibraryPage({ onBack }: LibraryPageProps) {
+  const { isAdmin } = useAuth();
+  const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
+
+  const [file, setFile] = useState<File | null>(null);
+  const [title, setTitle] = useState('');
+  const [docType, setDocType] = useState(DOCUMENT_TYPES[0].value);
+  const [funder, setFunder] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setDocuments(await listDocuments('library'));
+      setListError(null);
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : 'Could not load the library.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const handleUpload = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    setNotice(null);
+    try {
+      const uploaded = await uploadDocument(file, { scope: 'library', title, docType, funder });
+      setNotice(`"${uploaded.title}" was added and split into ${uploaded.chunk_count} passages.`);
+      setFile(null);
+      setTitle('');
+      setFunder('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'The upload failed.');
+    } finally {
+      setIsUploading(false);
+      await refresh();
+    }
+  };
+
+  const handleDelete = async (document: KnowledgeDocument) => {
+    if (!window.confirm(`Remove "${document.title}" from the library? This cannot be undone.`)) return;
+    setBusyId(document.id);
+    setNotice(null);
+    try {
+      await deleteDocument(document.id);
+      setNotice(`"${document.title}" was removed.`);
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : 'Could not remove the document.');
+    } finally {
+      setBusyId(null);
+      await refresh();
+    }
+  };
+
+  const handleReindex = async (document: KnowledgeDocument) => {
+    setBusyId(document.id);
+    setNotice(null);
+    try {
+      const updated = await reindexDocument(document.id);
+      setNotice(`"${updated.title}" was processed again into ${updated.chunk_count} passages.`);
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : 'Could not process the document again.');
+    } finally {
+      setBusyId(null);
+      await refresh();
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-stone-50">
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <Button variant="ghost" onClick={onBack} className="gap-2 text-stone-600 hover:text-stone-900 mb-6">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Home
+        </Button>
+
+        <div className="flex items-center gap-3 mb-2">
+          <Library className="w-8 h-8 text-emerald-600" />
+          <h1 className="text-stone-900">Document library</h1>
+        </div>
+        <p className="text-stone-600 mb-8 max-w-3xl">
+          Guidelines, policies and funder documents that the assistant can draw on for every proposal.
+          {isAdmin ? '' : ' Library administrators add and remove documents.'}
+        </p>
+
+        {isAdmin && (
+          <Card className="border border-stone-200 mb-8">
+            <CardContent className="p-6">
+              <h2 className="text-stone-900 mb-4">Add a document</h2>
+              <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2 space-y-2">
+                  <Label htmlFor="library-file">File (PDF, Word .docx or text, up to 20 MB)</Label>
+                  <Input
+                    id="library-file"
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.txt,.md"
+                    onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="library-title">Title (optional)</Label>
+                  <Input
+                    id="library-title"
+                    placeholder="Defaults to the file name"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="library-funder">Funder or program (optional)</Label>
+                  <Input
+                    id="library-funder"
+                    placeholder="e.g. Indigenous Services Canada"
+                    value={funder}
+                    onChange={(event) => setFunder(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="library-type">Type</Label>
+                  <select
+                    id="library-type"
+                    value={docType}
+                    onChange={(event) => setDocType(event.target.value)}
+                    className="w-full h-9 rounded-md border border-stone-200 bg-white px-3 text-sm text-stone-900"
+                  >
+                    {DOCUMENT_TYPES.map(({ value, label }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="submit"
+                    disabled={!file || isUploading}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                  >
+                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    {isUploading ? 'Uploading and indexing…' : 'Add to library'}
+                  </Button>
+                </div>
+                {uploadError && (
+                  <p role="alert" className="md:col-span-2 text-sm text-red-600">
+                    {uploadError}
+                  </p>
+                )}
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {notice && (
+          <p role="status" className="mb-4 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
+            {notice}
+          </p>
+        )}
+        {listError && (
+          <p role="alert" className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+            {listError}
+          </p>
+        )}
+
+        <Card className="border border-stone-200">
+          <CardContent className="p-0">
+            {isLoading ? (
+              <p className="p-8 text-center text-stone-500">Loading…</p>
+            ) : documents.length === 0 ? (
+              <div className="p-10 text-center text-stone-500">
+                <FileText className="w-8 h-8 mx-auto mb-3 text-stone-400" />
+                <p>The library is empty.</p>
+                {isAdmin && <p className="text-sm mt-1">Add a guideline or policy above to get started.</p>}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Document</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Funder</TableHead>
+                    <TableHead>Passages</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Added</TableHead>
+                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {documents.map((document) => (
+                    <TableRow key={document.id}>
+                      <TableCell>
+                        <div className="text-stone-900">{document.title}</div>
+                        <div className="text-xs text-stone-500">
+                          {document.filename} · {formatSize(document.size_bytes)}
+                        </div>
+                      </TableCell>
+                      <TableCell>{TYPE_LABELS[document.doc_type ?? ''] ?? '—'}</TableCell>
+                      <TableCell>{document.funder ?? '—'}</TableCell>
+                      <TableCell>{document.chunk_count}</TableCell>
+                      <TableCell>
+                        <StatusBadge document={document} />
+                      </TableCell>
+                      <TableCell>{formatDate(document.created_at)}</TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={busyId === document.id}
+                            onClick={() => handleReindex(document)}
+                            title="Process this document again"
+                            className="gap-1 text-stone-600"
+                          >
+                            <RefreshCw className={`w-4 h-4 ${busyId === document.id ? 'animate-spin' : ''}`} />
+                            Re-process
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={busyId === document.id}
+                            onClick={() => handleDelete(document)}
+                            className="gap-1 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Remove
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
