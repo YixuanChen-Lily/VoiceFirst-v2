@@ -278,6 +278,7 @@ def search(query: str, owner_id: str, proposal_id: Optional[str] = None, k: int 
             filename=chunk.metadata["filename"],
             scope=chunk.metadata["scope"],
             page=chunk.metadata.get("page"),
+            section=chunk.metadata.get("section"),
             text=chunk.page_content,
             distance=distance,
         )

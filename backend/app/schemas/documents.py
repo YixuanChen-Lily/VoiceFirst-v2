@@ -37,6 +37,7 @@ class SearchResult(BaseModel):
     filename: str
     scope: str
     page: Optional[int] = None
+    section: Optional[str] = None
     text: str
     distance: float
 

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile
+
+from ...core.auth import User, get_current_user
 
 from ...schemas.assist import (
     ChatRequest,
@@ -13,8 +15,10 @@ router = APIRouter(prefix="/assist", tags=["assist"])
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
-    return await chat_service.run_chat_turn(request)
+async def chat_with_assistant(
+    request: ChatRequest, user: User = Depends(get_current_user)
+) -> ChatResponse:
+    return await chat_service.run_chat_turn(request, user)
 
 
 @router.post("/tts", response_model=SynthesisResponse)

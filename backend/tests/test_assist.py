@@ -43,6 +43,7 @@ def test_chat_returns_reply_filtered_fields_and_audio(client, mock_api):
         "audio_base64": base64.b64encode(AUDIO).decode(),
         "field_updates": {"projectTitle": "Riverbend Youth Hub"},
         "model": "test-chat-model",
+        "sources": [],
     }
 
     sent = sent_json(openai)

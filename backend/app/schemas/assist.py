@@ -24,6 +24,16 @@ class ChatRequest(BaseModel):
     )
 
 
+class ChatSource(BaseModel):
+    """A library passage the reply cites as [number]."""
+
+    number: int
+    document_id: str
+    title: str
+    section: Optional[str] = None
+    page: Optional[int] = None
+
+
 class ChatResponse(BaseModel):
     message: str
     audio_base64: Optional[str] = None
@@ -31,6 +41,10 @@ class ChatResponse(BaseModel):
     model: Optional[str] = Field(
         default=None,
         description="The chat model the router selected for this turn."
+    )
+    sources: List[ChatSource] = Field(
+        default_factory=list,
+        description="Library passages cited in the reply, in citation order."
     )
 
 
