@@ -131,7 +131,9 @@ def test_upload_saves_the_original_then_indexes_it(client, kb):
 
     chunks = kb["index"].chunks[body["id"]]
     assert len(chunks) == body["chunk_count"]
-    assert all(len(chunk.page_content) <= 200 for chunk in chunks)
+    # Each chunk is a label line plus at most CHUNK_SIZE (200 in tests) characters of the document.
+    assert all(chunk.page_content.startswith("Program Guidelines") for chunk in chunks)
+    assert all(len(chunk.page_content.split("\n\n", 1)[1]) <= 200 for chunk in chunks)
     assert chunks[0].metadata == {
         "document_id": body["id"],
         "scope": "library",
@@ -142,6 +144,7 @@ def test_upload_saves_the_original_then_indexes_it(client, kb):
         "doc_type": "guideline",
         "funder": "ISC",
         "page": None,
+        "section": "Eligibility / Budget rules",
         "chunk_index": 0,
     }
 
