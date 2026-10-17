@@ -65,10 +65,20 @@ export interface ChatRequestBody {
   section?: number;
 }
 
+export interface ChatSource {
+  number: number;
+  document_id: string;
+  title: string;
+  section?: string | null;
+  page?: number | null;
+}
+
 export interface ChatResponseBody {
   message: string;
   audio_base64?: string;
   field_updates?: Record<string, string>;
+  /** Library passages cited in the reply as [1], [2], ... */
+  sources?: ChatSource[];
 }
 
 export interface TranscriptionResponse {

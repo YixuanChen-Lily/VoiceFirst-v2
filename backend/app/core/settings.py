@@ -29,6 +29,10 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "150"))
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(20 * 1024 * 1024)))
+# Chat retrieval: how many library passages to consider per chat turn, and how close
+# (cosine distance, lower is closer) a passage must be to the message to be used.
+CHAT_RETRIEVAL_K = int(os.getenv("CHAT_RETRIEVAL_K", "4"))
+CHAT_RETRIEVAL_MAX_DISTANCE = float(os.getenv("CHAT_RETRIEVAL_MAX_DISTANCE", "0.5"))
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")

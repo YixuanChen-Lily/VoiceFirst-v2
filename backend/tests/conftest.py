@@ -163,3 +163,11 @@ def mock_api(monkeypatch):
     monkeypatch.setattr(openai_client, "http_client", fake_client)
     with respx.mock(assert_all_called=False) as router:
         yield MockApi(router, openai_route)
+
+
+@pytest.fixture(autouse=True)
+def empty_library(monkeypatch):
+    """Chat turns find no library passages unless a test supplies some."""
+    from backend.app.services import chat_graph
+
+    monkeypatch.setattr(chat_graph, "_search_library", lambda query, user_id: [])

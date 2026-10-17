@@ -15,7 +15,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useProposal } from '../../context/ProposalContext';
 import type { ProposalData } from '../../context/ProposalContext';
-import { chatWithAssistant, transcribeAudio, type ConversationMessage } from '../../lib/api';
+import { chatWithAssistant, transcribeAudio, type ChatSource, type ConversationMessage } from '../../lib/api';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface AIChatPanelProps {
@@ -32,6 +32,7 @@ interface Message {
   content: string;
   timestamp: Date;
   audioSrc?: string;
+  sources?: ChatSource[];
   pendingUpdates?: {
     updates: Record<string, string>;
     labels: string[];
@@ -610,6 +611,7 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
         content: response.message,
         timestamp: new Date(),
         audioSrc,
+        sources: response.sources ?? [],
       };
 
       setMessages((prev) => [...prev, aiMessage]);
@@ -796,6 +798,18 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
                       <p className="text-sm text-stone-800 leading-relaxed">
                         {message.content}
                       </p>
+                      {message.sources && message.sources.length > 0 && (
+                        <div className="mt-3 pt-2 border-t border-stone-100 space-y-1">
+                          <p className="text-xs text-stone-500">Sources from the document library</p>
+                          {message.sources.map((source) => (
+                            <p key={source.number} className="text-xs text-stone-600">
+                              [{source.number}] {source.title.replace(/\.(pdf|docx|txt|md)$/i, '')}
+                              {source.section ? ` › ${source.section}` : ''}
+                              {source.page ? `, page ${source.page}` : ''}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                       <div className="flex items-center justify-between mt-2">
                         <p className="text-xs text-stone-400">
                           {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
