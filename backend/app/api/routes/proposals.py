@@ -6,14 +6,14 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
 
-from ...schemas.proposals import DraftAnalysis, ProposalPayload, ProposalResponse
+from ...schemas.proposals import DraftAnalysisResponse, ProposalPayload, ProposalResponse
 from ...services import analysis_service, document_parsing_service, export_service
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
 
-@router.post("/analyze", response_model=List[DraftAnalysis])
-async def analyze_draft(file: UploadFile = File(...)) -> List[DraftAnalysis]:
+@router.post("/analyze", response_model=DraftAnalysisResponse)
+async def analyze_draft(file: UploadFile = File(...)) -> DraftAnalysisResponse:
     """Analyze an uploaded proposal draft and return section-level scoring."""
 
     content = await file.read()
@@ -22,7 +22,7 @@ async def analyze_draft(file: UploadFile = File(...)) -> List[DraftAnalysis]:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
     try:
-        extracted_text = document_parsing_service.extract_text(content, file.filename or "")
+        extracted_text = document_parsing_service.parse_document(content, file.filename or "").text
     except document_parsing_service.DocumentParsingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not extracted_text.strip():

@@ -140,7 +140,17 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 }
 
-export async function analyzeDraft(file: File): Promise<DraftAnalysis[]> {
+export interface DraftAnalysisResponse {
+  sections: DraftAnalysis[];
+  /** 'keywords' means the AI analysis was unavailable and a simple keyword check was used. */
+  method: 'model' | 'keywords';
+  /** True when only the start of a very long draft was analysed. */
+  truncated: boolean;
+  characters_analysed: number;
+  characters_total: number;
+}
+
+export async function analyzeDraft(file: File): Promise<DraftAnalysisResponse> {
   const formData = new FormData();
   formData.append('file', file);
 
@@ -149,7 +159,7 @@ export async function analyzeDraft(file: File): Promise<DraftAnalysis[]> {
     body: formData,
   });
 
-  return handleResponse<DraftAnalysis[]>(response);
+  return handleResponse<DraftAnalysisResponse>(response);
 }
 
 export async function submitProposal(payload: ProposalPayload): Promise<ProposalResponse> {
