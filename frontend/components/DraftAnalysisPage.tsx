@@ -32,6 +32,8 @@ interface AnalysisResult {
   }[];
   strengths: string[];
   improvements: string[];
+  /** Notes about how the analysis was done, shown above the score. */
+  notices: string[];
 }
 
 export function DraftAnalysisPage({ draftFile, onContinue, onBack }: DraftAnalysisPageProps) {
@@ -50,8 +52,20 @@ export function DraftAnalysisPage({ draftFile, onContinue, onBack }: DraftAnalys
         const payload = await analyzeDraft(draftFile);
         if (!isMounted) return;
 
-        const transformed = transformAnalysis(payload);
-        setAnalysis(transformed);
+        const transformed = transformAnalysis(payload.sections);
+        const notices: string[] = [];
+        if (payload.truncated) {
+          const share = Math.round((payload.characters_analysed / payload.characters_total) * 100);
+          notices.push(
+            `This document is very long, so only the first ${share}% of it was analysed. Sections after that point were not scored.`,
+          );
+        }
+        if (payload.method === 'keywords') {
+          notices.push(
+            'AI analysis was unavailable, so these scores come from a simple keyword check and are only a rough guide. Try again later for a full analysis.',
+          );
+        }
+        setAnalysis({ ...transformed, notices });
       } catch (err) {
         if (!isMounted) return;
         setError(err instanceof Error ? err.message : 'Unable to analyze draft. Please try again.');
@@ -76,6 +90,7 @@ export function DraftAnalysisPage({ draftFile, onContinue, onBack }: DraftAnalys
         sections: [],
         strengths: [],
         improvements: [],
+        notices: [],
       };
     }
 
@@ -114,6 +129,7 @@ export function DraftAnalysisPage({ draftFile, onContinue, onBack }: DraftAnalys
       sections,
       strengths,
       improvements,
+      notices: [],
     };
   };
 
@@ -241,6 +257,17 @@ export function DraftAnalysisPage({ draftFile, onContinue, onBack }: DraftAnalys
             </div>
           </div>
         </div>
+
+        {analysis.notices.map((notice) => (
+          <div
+            key={notice}
+            role="status"
+            className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          >
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{notice}</span>
+          </div>
+        ))}
 
         {/* Overall Score Card */}
         <motion.div

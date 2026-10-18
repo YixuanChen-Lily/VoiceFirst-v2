@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -24,6 +24,18 @@ class DraftAnalysisResult(BaseModel):
     sections: List[DraftAnalysis] = Field(
         ..., description="One entry per major section present in the proposal."
     )
+
+
+class DraftAnalysisResponse(BaseModel):
+    """What the analysis endpoint returns."""
+
+    sections: List[DraftAnalysis]
+    method: Literal["model", "keywords"] = Field(
+        ..., description="'keywords' means the AI analysis was unavailable and a simple keyword check was used."
+    )
+    truncated: bool = Field(..., description="True when only the start of a very long draft was analysed.")
+    characters_analysed: int
+    characters_total: int
 
 
 class ProposalPayload(BaseModel):

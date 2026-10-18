@@ -29,6 +29,9 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "150"))
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(20 * 1024 * 1024)))
+# Draft analysis reads at most this many characters of a draft (about 100 pages). The cap
+# only guards against very large uploads; the analysis model can read far more.
+ANALYSIS_MAX_CHARS = int(os.getenv("ANALYSIS_MAX_CHARS", "400000"))
 # Chat retrieval: how many library passages to consider per chat turn, and how close
 # (cosine distance, lower is closer) a passage must be to the message to be used.
 CHAT_RETRIEVAL_K = int(os.getenv("CHAT_RETRIEVAL_K", "4"))

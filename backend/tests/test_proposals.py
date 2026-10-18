@@ -5,6 +5,8 @@ from zipfile import ZipFile
 import httpx
 import pytest
 
+from backend.app.core import settings
+
 from .conftest import OPENAI_CHAT_URL, openai_completion, sent_json
 
 DRAFT = b"Executive Summary\nWe will build a youth hub.\n\nBudget\nWe request $250,000.\n"
@@ -33,23 +35,29 @@ def test_analyze_returns_model_scores(client, mock_api):
     response = _upload(client)
 
     assert response.status_code == 200
-    assert response.json() == [
-        {
-            "section": "Executive Summary",
-            "summary": "Clear.",
-            "recommendations": ["Add need."],
-            "score": 72,
-        },
-        {"section": "Budget", "summary": "Thin.", "recommendations": [], "score": 40},
-    ]
+    assert response.json() == {
+        "sections": [
+            {
+                "section": "Executive Summary",
+                "summary": "Clear.",
+                "recommendations": ["Add need."],
+                "score": 72,
+            },
+            {"section": "Budget", "summary": "Thin.", "recommendations": [], "score": 40},
+        ],
+        "method": "model",
+        "truncated": False,
+        "characters_analysed": len(DRAFT.decode().strip()),
+        "characters_total": len(DRAFT.decode().strip()),
+    }
 
     sent = sent_json(openai)
     assert sent["model"] == "test-analysis-model"
     assert "temperature" not in sent
     assert [m["role"] for m in sent["messages"]] == ["system", "user"]
-    # Whitespace in the draft is collapsed before it is sent.
+    # Paragraph breaks are kept so the model can see where sections start.
     assert sent["messages"][1]["content"].endswith(
-        "Executive Summary We will build a youth hub. Budget We request $250,000."
+        "Executive Summary\nWe will build a youth hub.\n\nBudget\nWe request $250,000."
     )
     # The reply shape is sent to OpenAI as a structured-output schema.
     assert sent["response_format"]["type"] == "json_schema"
@@ -73,19 +81,37 @@ def test_analyze_falls_back_when_the_reply_does_not_match_the_shape(client, mock
     response = _upload(client)
 
     assert response.status_code == 200
-    assert len(response.json()) == 7  # the keyword fallback always returns its seven sections
+    assert response.json()["method"] == "keywords"
+    assert len(response.json()["sections"]) == 7  # the keyword fallback always returns its seven sections
     assert len(openai.calls) == 2  # asked once, then once more before giving up
 
 
-def test_analyze_truncates_long_drafts(client, mock_api):
+def test_analyze_reads_long_drafts_in_full(client, mock_api):
     openai = mock_api.post(OPENAI_CHAT_URL).mock(
-        return_value=openai_completion(json.dumps({"sections": [{"section": "A", "score": 1}]}))
+        return_value=openai_completion(json.dumps({"sections": [{"section": "A", "summary": "", "recommendations": [], "score": 1}]}))
+    )
+    long_draft = ("Budget\n" + "Renovation costs are itemised here. " * 1000).encode()  # about 36,000 characters
+
+    body = _upload(client, long_draft).json()
+
+    sent = sent_json(openai)["messages"][1]["content"]
+    assert "Renovation costs are itemised here." in sent[-60:]  # the end of the draft is included
+    assert body["truncated"] is False
+    assert body["characters_analysed"] == body["characters_total"] > 15000
+
+
+def test_analyze_says_when_an_extremely_long_draft_is_cut_short(client, mock_api, monkeypatch):
+    monkeypatch.setattr(settings, "ANALYSIS_MAX_CHARS", 1000)
+    openai = mock_api.post(OPENAI_CHAT_URL).mock(
+        return_value=openai_completion(json.dumps({"sections": [{"section": "A", "summary": "", "recommendations": [], "score": 1}]}))
     )
     prefix = "Analyze the following proposal.\n\n"
 
-    _upload(client, b"x" * 20000)
+    body = _upload(client, b"x" * 5000).json()
 
-    assert len(sent_json(openai)["messages"][1]["content"]) == len(prefix) + 15000
+    assert len(sent_json(openai)["messages"][1]["content"]) == len(prefix) + 1000
+    assert body["truncated"] is True
+    assert (body["characters_analysed"], body["characters_total"]) == (1000, 5000)
 
 
 def test_analyze_falls_back_to_keywords_when_the_model_call_fails(client, mock_api):
@@ -96,7 +122,8 @@ def test_analyze_falls_back_to_keywords_when_the_model_call_fails(client, mock_a
     response = _upload(client)
 
     assert response.status_code == 200
-    by_section = {item["section"]: item for item in response.json()}
+    assert response.json()["method"] == "keywords"
+    by_section = {item["section"]: item for item in response.json()["sections"]}
     assert list(by_section) == [
         "Executive Summary",
         "Community Context",
@@ -123,7 +150,8 @@ def test_analyze_falls_back_when_the_model_returns_no_sections(client, mock_api)
     response = _upload(client)
 
     assert response.status_code == 200
-    assert len(response.json()) == 7
+    assert response.json()["method"] == "keywords"
+    assert len(response.json()["sections"]) == 7
 
 
 def test_analyze_rejects_empty_and_blank_files(client, mock_api):

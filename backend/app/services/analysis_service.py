@@ -7,26 +7,39 @@ from fastapi import HTTPException
 
 from ..clients import openai_client
 from ..core import settings
-from ..schemas.proposals import DraftAnalysis, DraftAnalysisResult
+from ..schemas.proposals import DraftAnalysis, DraftAnalysisResponse, DraftAnalysisResult
 
 logger = logging.getLogger(__name__)
 
 
-async def analyze_text(text: str) -> List[DraftAnalysis]:
+async def analyze_text(text: str) -> DraftAnalysisResponse:
+    """
+    Score a draft section by section. The text keeps its paragraph breaks so the
+    model can see where sections start. Only an extremely long draft is cut short,
+    and the response says so.
+    """
+    analysed = text[: settings.ANALYSIS_MAX_CHARS]
+    sections, method = None, "keywords"
     if openai_client.is_available():
         try:
-            return await _analyze_with_openai(text)
+            sections, method = await _analyze_with_openai(analysed), "model"
         except HTTPException:
             raise
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.warning("OpenAI analysis failed, falling back to heuristic scoring: %s", exc)
+    if sections is None:
+        sections = _fallback_analysis(analysed)
 
-    return _fallback_analysis(text)
+    return DraftAnalysisResponse(
+        sections=sections,
+        method=method,
+        truncated=len(analysed) < len(text),
+        characters_analysed=len(analysed),
+        characters_total=len(text),
+    )
 
 
 async def _analyze_with_openai(text: str) -> List[DraftAnalysis]:
-    condensed_text = text if len(text) <= 15000 else text[:15000]
-
     system_prompt = (
         "You are an expert grant reviewer. Assess the provided proposal text and "
         "score each major section between 0 and 100, with a short summary and "
@@ -38,7 +51,7 @@ async def _analyze_with_openai(text: str) -> List[DraftAnalysis]:
         response_model=DraftAnalysisResult,
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": "Analyze the following proposal.\n\n" + condensed_text},
+            {"role": "user", "content": "Analyze the following proposal.\n\n" + text},
         ],
     )
 
