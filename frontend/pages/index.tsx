@@ -4,20 +4,32 @@ import { DraftAnalysisPage } from '../components/DraftAnalysisPage';
 import { LandingPage } from '../components/LandingPage';
 import { LibraryPage } from '../components/library/LibraryPage';
 import { ProposalBuilder } from '../components/ProposalBuilder';
+import { useProposal } from '../context/ProposalContext';
 
 type WorkflowStep = 'landing' | 'draft-analysis' | 'builder' | 'library';
 
 const HomePage: NextPage = () => {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('landing');
   const [uploadedDraft, setUploadedDraft] = useState<File | null>(null);
+  const { startNewProposal, openProposal } = useProposal();
 
   return (
     <div className="min-h-screen">
       {currentStep === 'landing' && (
         <LandingPage
-          onStartFromScratch={() => setCurrentStep('builder')}
+          onStartFromScratch={async () => {
+            await startNewProposal();
+            setUploadedDraft(null);
+            setCurrentStep('builder');
+          }}
           onOpenLibrary={() => setCurrentStep('library')}
-          onUploadDraft={(file) => {
+          onOpenProposal={async (proposal) => {
+            await openProposal(proposal);
+            setUploadedDraft(null);
+            setCurrentStep('builder');
+          }}
+          onUploadDraft={async (file) => {
+            await startNewProposal();
             setUploadedDraft(file);
             setCurrentStep('draft-analysis');
           }}

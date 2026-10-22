@@ -234,16 +234,3 @@ def test_export_rejects_a_payload_missing_required_fields(client):
 
     assert response.status_code == 400
     assert "project_title" in response.json()["detail"]
-
-
-def test_create_proposal_returns_a_mock_id(client):
-    response = client.post(
-        "/api/proposals",
-        json={"project_title": "Riverbend Youth Hub", "organization_name": "Riverbend First Nation"},
-    )
-
-    assert response.status_code == 201
-    assert response.json() == {
-        "message": "Proposal accepted for processing.",
-        "proposal_id": "proposal-riverbend-youth-hub",
-    }

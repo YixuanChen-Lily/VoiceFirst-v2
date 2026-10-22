@@ -12,6 +12,7 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import DeterministicFakeEmbedding
 
 from backend.app.clients.document_store import DocumentRecord, DocumentStore, new_document_id, utc_now
+from backend.app.clients.proposal_store import ProposalStore
 from backend.app.clients.vector_index import VectorIndex
 from backend.app.core.database import create_database_engine
 
@@ -105,3 +106,21 @@ def test_vector_index_adds_searches_by_scope_and_removes(engine):
     index.remove(ours_id, 1)
     index.remove(theirs_id, 1)
 
+
+def test_proposals_round_trip_and_stay_private(engine):
+    store = ProposalStore(engine)
+    form = {"projectTitle": "Riverbend Youth Hub", "milestones": [{"name": "Open", "date": "2027-09"}], "note": "Café"}
+
+    record = store.create("user-a", "Riverbend Youth Hub", form)
+    assert store.get(record.id, "user-a").data == form
+    assert store.get(record.id, "user-b") is None
+    assert record.id in [item.id for item in store.list("user-a")]
+    assert record.id not in [item.id for item in store.list("user-b")]
+
+    assert store.update(record.id, "user-b", "Hijacked", {}) is None
+    updated = store.update(record.id, "user-a", "Youth Hub 2.0", {"projectTitle": "Youth Hub 2.0"})
+    assert updated.title == "Youth Hub 2.0" and updated.updated_at >= record.updated_at
+
+    assert store.delete(record.id, "user-b") is False
+    assert store.delete(record.id, "user-a") is True
+    assert store.get(record.id, "user-a") is None
