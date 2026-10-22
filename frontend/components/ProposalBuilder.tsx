@@ -14,9 +14,9 @@ import { AttachmentsSection } from './sections/AttachmentsSection';
 import { ProgressTracker } from './ProgressTracker';
 import { AIChatPanel } from './chat/AIChatPanel';
 import { Button } from './ui/button';
-import { Save, FileDown, ArrowLeft, Menu } from 'lucide-react';
+import { Save, FileDown, ArrowLeft, Menu, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useProposal } from '../context/ProposalContext';
-import { exportProposalDoc, submitProposal, type ProposalPayload } from '../lib/api';
+import { exportProposalDoc, type ProposalPayload } from '../lib/api';
 
 interface ProposalBuilderProps {
   onBack: () => void;
@@ -26,11 +26,11 @@ interface ProposalBuilderProps {
 export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps) {
   const [currentSection, setCurrentSection] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
   const totalSections = 12;
-  const { data } = useProposal();
+  const { data, saveStatus, lastSavedAt, saveError, hasUnsavedChanges, saveNow } = useProposal();
+  const isSaving = saveStatus === 'saving';
 
   const handleNext = () => {
     if (currentSection < totalSections - 1) {
@@ -119,24 +119,17 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
     }
   };
 
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    setSubmitStatus(null);
-
-    try {
-      const payload = buildPayload();
-      const response = await submitProposal(payload);
-      setSubmitStatus(`Draft saved as ${response.proposal_id}`);
-    } catch (error) {
-      setSubmitStatus(
-        error instanceof Error
-          ? `Unable to save draft: ${error.message}`
-          : 'Unable to save draft. Please try again.',
-      );
-    } finally {
-      setIsSubmitting(false);
+  const saveLabel = (() => {
+    if (saveStatus === 'saving') return 'Saving…';
+    if (saveStatus === 'error') return saveError ? `Couldn't save: ${saveError}` : "Couldn't save";
+    if (hasUnsavedChanges) return 'Unsaved changes';
+    if (lastSavedAt) {
+      return `Saved at ${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
-  };
+    return 'Not saved yet';
+  })();
+
+  const SaveIcon = saveStatus === 'saving' ? Loader2 : saveStatus === 'error' ? AlertCircle : CheckCircle2;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-stone-50 to-stone-100">
@@ -155,7 +148,16 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
             <div>
               <h1 className="text-xl">Grant Proposal Builder</h1>
               <p className="text-emerald-100 text-sm">
-                {existingDraft ? `Improving: ${existingDraft.name}` : 'Creating new proposal'}
+                {existingDraft ? `Improving: ${existingDraft.name}` : data.projectTitle.trim() || 'New proposal'}
+              </p>
+              <p
+                role="status"
+                className={`mt-1 flex items-center gap-1 text-xs ${
+                  saveStatus === 'error' ? 'text-amber-200' : 'text-emerald-100'
+                }`}
+              >
+                <SaveIcon className={`w-3.5 h-3.5 ${saveStatus === 'saving' ? 'animate-spin' : ''}`} />
+                {saveLabel}
               </p>
             </div>
           </div>
@@ -234,17 +236,17 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
                 variant="outline"
                 size="lg"
                 className="gap-2 border-sky-600 text-sky-700 hover:bg-sky-50"
-                onClick={handleSubmit}
-                disabled={isSubmitting || isExporting}
+                onClick={saveNow}
+                disabled={isSaving || isExporting}
               >
                 <Save className="w-5 h-5" />
-                {isSubmitting ? 'Saving...' : 'Save Draft'}
+                {isSaving ? 'Saving…' : 'Save now'}
               </Button>
               <Button
                 size="lg"
                 className="gap-2 bg-sky-700 hover:bg-sky-800"
                 onClick={handleExport}
-                disabled={isSubmitting || isExporting}
+                disabled={isSaving || isExporting}
               >
                 <FileDown className="w-5 h-5" />
                 {isExporting ? 'Preparing...' : 'Export Proposal'}

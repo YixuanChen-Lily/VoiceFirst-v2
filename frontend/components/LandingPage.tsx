@@ -3,14 +3,17 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Upload, FileText, MessageSquare, CheckCircle, Sparkles, ArrowRight, Library } from 'lucide-react';
 import { motion } from 'motion/react';
+import { MyProposals } from './proposals/MyProposals';
+import type { SavedProposal } from '../lib/api';
 
 interface LandingPageProps {
   onStartFromScratch: () => void;
   onUploadDraft: (file: File) => void;
   onOpenLibrary: () => void;
+  onOpenProposal: (proposal: SavedProposal) => void;
 }
 
-export function LandingPage({ onStartFromScratch, onUploadDraft, onOpenLibrary }: LandingPageProps) {
+export function LandingPage({ onStartFromScratch, onUploadDraft, onOpenLibrary, onOpenProposal }: LandingPageProps) {
   const [dragActive, setDragActive] = useState(false);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -74,6 +77,8 @@ export function LandingPage({ onStartFromScratch, onUploadDraft, onOpenLibrary }
             <span>Powered by RAG, GPT-4o & ElevenLabs Voice AI</span>
           </div>
         </div>
+
+        <MyProposals onOpen={onOpenProposal} />
 
         {/* Two Main Options */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">

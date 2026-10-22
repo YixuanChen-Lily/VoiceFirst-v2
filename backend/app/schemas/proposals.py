@@ -1,6 +1,7 @@
-from typing import List, Literal, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DraftAnalysis(BaseModel):
@@ -51,6 +52,20 @@ class ProposalPayload(BaseModel):
     risks: Optional[str] = None
 
 
-class ProposalResponse(BaseModel):
-    message: str
-    proposal_id: str
+class ProposalSaveRequest(BaseModel):
+    """The proposal form, as the website holds it."""
+
+    data: Dict[str, Any]
+
+
+class ProposalSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class SavedProposal(ProposalSummary):
+    data: Dict[str, Any]

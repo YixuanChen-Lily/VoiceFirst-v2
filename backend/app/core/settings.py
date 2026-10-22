@@ -29,6 +29,9 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "150"))
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(20 * 1024 * 1024)))
+# Largest saved proposal (the form's text as JSON). A fully written proposal is about
+# 50 to 100 KB; the limit only guards the database against runaway or abusive saves.
+MAX_PROPOSAL_BYTES = int(os.getenv("MAX_PROPOSAL_BYTES", str(1024 * 1024)))
 # Draft analysis reads at most this many characters of a draft (about 100 pages). The cap
 # only guards against very large uploads; the analysis model can read far more.
 ANALYSIS_MAX_CHARS = int(os.getenv("ANALYSIS_MAX_CHARS", "400000"))

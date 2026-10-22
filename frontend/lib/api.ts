@@ -48,11 +48,6 @@ function serializeProposalPayload(payload: ProposalPayload): ProposalRequestPayl
   };
 }
 
-export interface ProposalResponse {
-  message: string;
-  proposal_id: string;
-}
-
 export interface ConversationMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -162,17 +157,6 @@ export async function analyzeDraft(file: File): Promise<DraftAnalysisResponse> {
   return handleResponse<DraftAnalysisResponse>(response);
 }
 
-export async function submitProposal(payload: ProposalPayload): Promise<ProposalResponse> {
-  const response = await apiFetch('/proposals', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(serializeProposalPayload(payload)),
-  });
-
-  return handleResponse<ProposalResponse>(response);
-}
 
 export async function chatWithAssistant(
   payload: ChatRequestBody,
@@ -335,5 +319,55 @@ export async function reindexDocument(documentId: string): Promise<KnowledgeDocu
 
 export async function deleteDocument(documentId: string): Promise<void> {
   const response = await apiFetch(`/documents/${documentId}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error(await errorMessage(response));
+}
+
+/** A saved proposal as listed on the home page. */
+export interface SavedProposalSummary {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A saved proposal with its form data. */
+export interface SavedProposal extends SavedProposalSummary {
+  data: Record<string, unknown>;
+}
+
+export async function listProposals(): Promise<SavedProposalSummary[]> {
+  const response = await apiFetch('/proposals');
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as SavedProposalSummary[];
+}
+
+export async function getProposal(proposalId: string): Promise<SavedProposal> {
+  const response = await apiFetch(`/proposals/${proposalId}`);
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as SavedProposal;
+}
+
+export async function createProposal(data: Record<string, unknown>): Promise<SavedProposal> {
+  const response = await apiFetch('/proposals', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data }),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as SavedProposal;
+}
+
+export async function saveProposal(proposalId: string, data: Record<string, unknown>): Promise<SavedProposal> {
+  const response = await apiFetch(`/proposals/${proposalId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data }),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as SavedProposal;
+}
+
+export async function deleteProposal(proposalId: string): Promise<void> {
+  const response = await apiFetch(`/proposals/${proposalId}`, { method: 'DELETE' });
   if (!response.ok) throw new Error(await errorMessage(response));
 }

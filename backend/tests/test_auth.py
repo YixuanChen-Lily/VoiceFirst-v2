@@ -46,12 +46,9 @@ def jwks(mock_api, monkeypatch):
 
 
 def _save(client, token=None, header=None):
+    """Call a cheap protected route (who am I) with the given credentials."""
     headers = {"Authorization": header or f"Bearer {token}"} if (token or header) else {}
-    return client.post(
-        "/api/proposals",
-        json={"project_title": "Riverbend Youth Hub", "organization_name": "Riverbend"},
-        headers=headers,
-    )
+    return client.get("/api/me", headers=headers)
 
 
 def test_requests_without_a_token_are_refused(anonymous_client, jwks):
@@ -81,7 +78,7 @@ def test_every_route_needs_sign_in(anonymous_client, jwks, path, kwargs):
 def test_a_valid_token_is_accepted(anonymous_client, jwks):
     response = _save(anonymous_client, make_token())
 
-    assert response.status_code == 201
+    assert response.status_code == 200
 
 
 def test_signing_keys_are_fetched_once_and_cached(anonymous_client, jwks):
@@ -124,7 +121,7 @@ def test_token_identity_and_admin_status(jwks):
 def test_sign_in_can_be_switched_off_for_local_development(anonymous_client, monkeypatch):
     monkeypatch.setattr(settings, "AUTH_DISABLED", True)
 
-    assert _save(anonymous_client).status_code == 201
+    assert _save(anonymous_client).status_code == 200
 
 
 def test_unreachable_key_server_is_a_503_not_a_401(anonymous_client, mock_api, monkeypatch):

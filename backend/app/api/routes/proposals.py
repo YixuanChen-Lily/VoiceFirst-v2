@@ -2,12 +2,19 @@ import json
 from io import BytesIO
 from typing import List
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
 
-from ...schemas.proposals import DraftAnalysisResponse, ProposalPayload, ProposalResponse
-from ...services import analysis_service, document_parsing_service, export_service
+from ...core.auth import User, get_current_user
+from ...schemas.proposals import (
+    DraftAnalysisResponse,
+    ProposalPayload,
+    ProposalSaveRequest,
+    ProposalSummary,
+    SavedProposal,
+)
+from ...services import analysis_service, document_parsing_service, export_service, proposal_service
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
@@ -74,15 +81,47 @@ async def export_proposal(
     )
 
 
-@router.post("", response_model=ProposalResponse, status_code=201)
-async def create_proposal(payload: ProposalPayload) -> ProposalResponse:
-    """
-    Accept a structured proposal payload and return a mock identifier.
+async def _run(function, *args):
+    """Run a blocking proposal call off the event loop and map its errors to HTTP."""
+    try:
+        return await run_in_threadpool(function, *args)
+    except proposal_service.ProposalsNotConfigured as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except proposal_service.ProposalNotFound as exc:
+        raise HTTPException(status_code=404, detail="Proposal not found.") from exc
+    except proposal_service.ProposalTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
 
-    Hook this into persistence once a database layer is decided.
-    """
-    proposal_id = f"proposal-{payload.project_title.lower().replace(' ', '-')}"
-    return ProposalResponse(
-        message="Proposal accepted for processing.",
-        proposal_id=proposal_id,
-    )
+
+@router.post("", response_model=SavedProposal, status_code=201)
+async def create_proposal(request: ProposalSaveRequest, user: User = Depends(get_current_user)) -> SavedProposal:
+    """Save a new proposal for the signed-in user."""
+    record = await _run(proposal_service.create_proposal, user.id, request.data)
+    return SavedProposal.model_validate(record)
+
+
+@router.get("", response_model=List[ProposalSummary])
+async def list_proposals(user: User = Depends(get_current_user)) -> List[ProposalSummary]:
+    """The signed-in user's proposals, most recently saved first."""
+    records = await _run(proposal_service.list_proposals, user.id)
+    return [ProposalSummary.model_validate(record) for record in records]
+
+
+@router.get("/{proposal_id}", response_model=SavedProposal)
+async def get_proposal(proposal_id: str, user: User = Depends(get_current_user)) -> SavedProposal:
+    record = await _run(proposal_service.get_proposal, proposal_id, user.id)
+    return SavedProposal.model_validate(record)
+
+
+@router.put("/{proposal_id}", response_model=SavedProposal)
+async def save_proposal(
+    proposal_id: str, request: ProposalSaveRequest, user: User = Depends(get_current_user)
+) -> SavedProposal:
+    record = await _run(proposal_service.save_proposal, proposal_id, user.id, request.data)
+    return SavedProposal.model_validate(record)
+
+
+@router.delete("/{proposal_id}", status_code=204)
+async def delete_proposal(proposal_id: str, user: User = Depends(get_current_user)) -> Response:
+    await _run(proposal_service.delete_proposal, proposal_id, user.id)
+    return Response(status_code=204)
