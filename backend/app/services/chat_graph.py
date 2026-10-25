@@ -5,8 +5,10 @@ The chat turn as a LangGraph graph.
 
 Jev scores how likely the turn needs real writing or reasoning. Plain code compares
 that score to a threshold and sends the turn to the fast chat model or the stronger one.
-Before the model answers, the closest passages from the document library are looked up
-and given to it; the reply cites the ones it uses as [1], [2], ...
+Before the model answers, the closest passages are looked up and given to it: from the
+shared document library and from the proposal's own files the assistant may read. The
+reply cites the ones it uses as [1], [2], ... The model is also told the names of every
+file in the proposal, including attachments it may not read.
 """
 
 import logging
@@ -20,7 +22,7 @@ from typing_extensions import TypedDict
 
 from ..clients import openai_client, typesafe_client
 from ..core import settings
-from . import extraction_service, knowledge_service, speech_service
+from . import extraction_service, knowledge_service, proposal_files_service, speech_service
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +48,10 @@ class ChatState(TypedDict, total=False):
     section: Optional[int]
     voice_id: Optional[str]
     user_id: Optional[str]
+    proposal_id: Optional[str]
     # Set by the nodes
     complexity: Optional[float]
+    files: List[Dict]
     passages: List[Dict]
     sources: List[Dict]
     model: str
@@ -87,32 +91,71 @@ async def classify(state: ChatState) -> dict:
 CITATION = re.compile(r"\s*\[(\d+)\]")
 
 RETRIEVAL_INSTRUCTIONS = (
-    "Below are passages from the organization's document library, numbered. They may or "
-    "may not be relevant. When you use information from a passage, cite it right after the "
+    "Below are numbered passages from the organization's document library and from the "
+    "files the user added to this proposal. They may or may not be relevant. When you use information from a passage, cite it right after the "
     "statement with its number in square brackets, like [1]. Do not cite passages you did not "
     "use. If the passages do not answer the user's question about a program's rules, say so "
     "rather than guessing. Never put citation markers inside field values."
 )
 
 
-def _search_library(query: str, user_id: str) -> list:
+FILES_INSTRUCTIONS = (
+    "These files are part of the user's proposal. You can read the ones marked readable, "
+    "through the numbered passages when they are relevant. For the others you know only the "
+    "name: do not guess at their contents. Use this list to say which supporting documents "
+    "the proposal has, or seems to be missing."
+)
+
+ORIGINS = {"background": "background document", "attachment": "attachment"}
+
+
+def _search_library(query: str, user_id: str, document_ids: List[str]) -> list:
     """Kept separate so tests can stand in for the knowledge base."""
-    return knowledge_service.search(query, user_id, proposal_id=None, k=settings.CHAT_RETRIEVAL_K)
+    return knowledge_service.search(query, user_id, document_ids=document_ids, k=settings.CHAT_RETRIEVAL_K)
+
+
+def _proposal_files(user_id: str, proposal_id: str) -> list:
+    """Kept separate so tests can stand in for the proposal's files."""
+    return proposal_files_service.chat_files(user_id, proposal_id)
+
+
+def _file_summary(item) -> Dict:
+    return {
+        "document_id": item.record.id,
+        "title": item.record.title,
+        "role": item.link.role,
+        "label": item.link.label,
+        "readable": item.link.use_in_chat and item.record.status == "ready",
+    }
 
 
 async def retrieve(state: ChatState) -> dict:
-    """Look up library passages close in meaning to the message. Failures never block the reply."""
-    user_id = state.get("user_id")
+    """
+    Look up passages close in meaning to the message, from the library and the files this
+    proposal lets the assistant read. Failures never block the reply.
+    """
+    user_id, proposal_id = state.get("user_id"), state.get("proposal_id")
     if not user_id or not knowledge_service.is_configured():
-        return {"passages": []}
+        return {"passages": [], "files": []}
+
+    files: List[Dict] = []
+    if proposal_id:
+        try:
+            files = [_file_summary(item) for item in await run_in_threadpool(_proposal_files, user_id, proposal_id)]
+        except Exception as exc:
+            logger.warning("Could not load the proposal's files, using the library only: %s", exc)
+    readable_ids = [item["document_id"] for item in files if item["readable"]]
+
     try:
-        results = await run_in_threadpool(_search_library, state["message"], user_id)
+        results = await run_in_threadpool(_search_library, state["message"], user_id, readable_ids)
     except Exception as exc:
         logger.warning("Library search failed, answering without passages: %s", exc)
-        return {"passages": []}
+        return {"passages": [], "files": files}
 
+    roles = {item["document_id"]: item["role"] for item in files}
     close = [result for result in results if result.distance <= settings.CHAT_RETRIEVAL_MAX_DISTANCE]
     return {
+        "files": files,
         "passages": [
             {
                 "number": number,
@@ -120,12 +163,23 @@ async def retrieve(state: ChatState) -> dict:
                 "title": result.title,
                 "section": result.section,
                 "page": result.page,
+                # "library", or how the proposal uses the file.
+                "origin": "library" if result.scope == "library" else roles.get(result.document_id, "background"),
                 # The stored text starts with its "title › section" label line; drop it here.
                 "text": result.text.split("\n\n", 1)[-1],
             }
             for number, result in enumerate(close, start=1)
-        ]
+        ],
     }
+
+
+def _files_message(files: List[Dict]) -> str:
+    lines = []
+    for item in files:
+        name = f"{item['label']}: {item['title']}" if item.get("label") else item["title"]
+        access = "readable" if item["readable"] else "name only"
+        lines.append(f"- {name} ({ORIGINS.get(item['role'], item['role'])}, {access})")
+    return FILES_INSTRUCTIONS + "\n\n" + "\n".join(lines)
 
 
 def _passages_message(passages: List[Dict]) -> str:
@@ -136,6 +190,8 @@ def _passages_message(passages: List[Dict]) -> str:
             where += f" › {passage['section']}"
         if passage.get("page"):
             where += f" (page {passage['page']})"
+        if passage.get("origin") in ORIGINS:
+            where += f" [the user's {ORIGINS[passage['origin']]}]"
         blocks.append(f"[{passage['number']}] {where}\n{passage['text']}")
     return RETRIEVAL_INSTRUCTIONS + "\n\n" + "\n\n".join(blocks)
 
@@ -144,7 +200,7 @@ def _cited_sources(reply: str, passages: List[Dict]) -> List[Dict]:
     """The passages the reply actually cites, in the order of their numbers."""
     cited = {int(number) for number in CITATION.findall(reply)}
     return [
-        {key: passage[key] for key in ("number", "document_id", "title", "section", "page")}
+        {key: passage.get(key) for key in ("number", "document_id", "title", "section", "page", "origin")}
         for passage in passages
         if passage["number"] in cited
     ]
@@ -167,6 +223,9 @@ async def _generate(state: ChatState, model: str) -> dict:
     instruction = extraction_service.build_extraction_instruction(section)
     if instruction:
         messages.append({"role": "system", "content": instruction})
+    files = state.get("files") or []
+    if files:
+        messages.append({"role": "system", "content": _files_message(files)})
     passages = state.get("passages") or []
     if passages:
         messages.append({"role": "system", "content": _passages_message(passages)})

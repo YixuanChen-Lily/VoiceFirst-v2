@@ -3,10 +3,6 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { createProposal, saveProposal, type SavedProposal } from '../lib/api';
 
 export interface ProposalData {
-  // Document uploads
-  communityDocuments: File[];
-  fundingDocuments: File[];
-  
   // Cover Page
   projectTitle: string;
   organizationName: string;
@@ -72,18 +68,20 @@ export interface ProposalData {
   
   // Risk Management
   risksMitigation: string;
+
+  // Attachments: which recommended documents are ticked off. Files themselves are
+  // stored on the server and linked to the saved proposal.
+  attachmentChecklist: Record<string, boolean>;
 }
 
 interface ProposalContextType {
   data: ProposalData;
   updateField: (field: keyof ProposalData, value: any) => void;
   updateMultipleFields: (fields: Partial<ProposalData>) => void;
-  addCommunityDocument: (file: File) => void;
-  addFundingDocument: (file: File) => void;
-  removeCommunityDocument: (index: number) => void;
-  removeFundingDocument: (index: number) => void;
   /** The saved proposal being edited; null until the first save of a new proposal. */
   proposalId: string | null;
+  /** Save the proposal if it has never been saved, and return its id. Files need one. */
+  ensureSaved: () => Promise<string>;
   saveStatus: SaveStatus;
   lastSavedAt: Date | null;
   saveError: string | null;
@@ -104,8 +102,6 @@ const AUTOSAVE_DELAY_MS = 2000;
 const ProposalContext = createContext<ProposalContextType | undefined>(undefined);
 
 const initialData: ProposalData = {
-  communityDocuments: [],
-  fundingDocuments: [],
   projectTitle: '',
   organizationName: '',
   submissionDate: '',
@@ -157,17 +153,19 @@ const initialData: ProposalData = {
   funderAlignment: '',
   longTermSustainability: '',
   risksMitigation: '',
+  attachmentChecklist: {},
 };
 
-/** The form as it is saved: uploaded files are not part of it. */
+/** The form as it is saved. Uploaded files are saved separately, linked to the proposal. */
 function toSavedData(data: ProposalData): Record<string, unknown> {
-  const { communityDocuments, fundingDocuments, ...rest } = data;
-  return rest;
+  return { ...data };
 }
 
 /** A saved form back into the shape the builder uses; fields added since it was saved start empty. */
 function fromSavedData(saved: Record<string, unknown>): ProposalData {
-  return { ...initialData, ...saved, communityDocuments: [], fundingDocuments: [] } as ProposalData;
+  // Proposals saved before files were stored on the server may carry these empty lists.
+  const { communityDocuments, fundingDocuments, ...rest } = saved;
+  return { ...initialData, ...rest } as ProposalData;
 }
 
 export function ProposalProvider({ children }: { children: ReactNode }) {
@@ -201,34 +199,6 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
 
   const updateMultipleFields = (fields: Partial<ProposalData>) => {
     change(prev => ({ ...prev, ...fields }));
-  };
-
-  const addCommunityDocument = (file: File) => {
-    change(prev => ({
-      ...prev,
-      communityDocuments: [...prev.communityDocuments, file]
-    }));
-  };
-
-  const addFundingDocument = (file: File) => {
-    change(prev => ({
-      ...prev,
-      fundingDocuments: [...prev.fundingDocuments, file]
-    }));
-  };
-
-  const removeCommunityDocument = (index: number) => {
-    change(prev => ({
-      ...prev,
-      communityDocuments: prev.communityDocuments.filter((_, i) => i !== index)
-    }));
-  };
-
-  const removeFundingDocument = (index: number) => {
-    change(prev => ({
-      ...prev,
-      fundingDocuments: prev.fundingDocuments.filter((_, i) => i !== index)
-    }));
   };
 
   const save = useCallback(async () => {
@@ -324,16 +294,22 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
     await save();
   };
 
+  const ensureSaved = async (): Promise<string> => {
+    if (proposalIdRef.current) return proposalIdRef.current;
+    await save();
+    if (!proposalIdRef.current) {
+      throw new Error('The proposal could not be saved, so the file was not added. Try again.');
+    }
+    return proposalIdRef.current;
+  };
+
   return (
     <ProposalContext.Provider value={{
       data,
       updateField,
       updateMultipleFields,
-      addCommunityDocument,
-      addFundingDocument,
-      removeCommunityDocument,
-      removeFundingDocument,
       proposalId,
+      ensureSaved,
       saveStatus,
       lastSavedAt,
       saveError,

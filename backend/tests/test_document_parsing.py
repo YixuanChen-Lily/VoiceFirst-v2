@@ -1,17 +1,21 @@
-"""Reading PDF, Word and text uploads into clean text."""
+"""Reading PDF, Word, Excel and text uploads into clean text."""
 
 import json
 from io import BytesIO
 from zipfile import ZipFile
 
 import pytest
+from datetime import datetime
+
 from docx import Document
+from openpyxl import Workbook
 from pypdf import PdfWriter
 
 from backend.app.services.document_parsing_service import (
     DocumentParsingError,
     extract_text,
     parse_document,
+    to_langchain_documents,
 )
 
 from .conftest import OPENAI_CHAT_URL, openai_completion, sent_json
@@ -133,10 +137,10 @@ def test_unreadable_files_raise_a_clear_error(content, message):
         parse_document(content)
 
 
-def test_zip_that_is_not_a_word_file_is_rejected():
+def test_zip_that_is_not_a_word_or_excel_file_is_rejected():
     out = BytesIO()
     with ZipFile(out, "w") as archive:
-        archive.writestr("xl/workbook.xml", "<workbook/>")
+        archive.writestr("ppt/presentation.xml", "<presentation/>")
 
     with pytest.raises(DocumentParsingError, match="not supported"):
         parse_document(out.getvalue())
@@ -181,3 +185,45 @@ def test_analyze_explains_why_a_file_cannot_be_read(client, mock_api):
 
     assert response.status_code == 400
     assert response.json()["detail"].startswith("This PDF has no selectable text.")
+
+
+def make_xlsx(sheets: dict) -> bytes:
+    """Build a workbook from {sheet name: rows}."""
+    workbook = Workbook()
+    workbook.remove(workbook.active)
+    for name, rows in sheets.items():
+        worksheet = workbook.create_sheet(name)
+        for row in rows:
+            worksheet.append(row)
+    out = BytesIO()
+    workbook.save(out)
+    return out.getvalue()
+
+
+def test_excel_sheets_are_read_as_rows_of_cells():
+    content = make_xlsx(
+        {
+            "Budget": [
+                ["Item", "Year 1", "Year 2"],
+                ["Personnel", 85000, 87550.5],
+                [None, None, None],
+                ["Start date", datetime(2027, 4, 1), None],
+            ],
+            "Empty": [],
+            "Partners": [["Riverbend Council", "In-kind", 12000]],
+        }
+    )
+
+    parsed = parse_document(content, "budget.xlsx")
+
+    assert parsed.kind == "xlsx"
+    assert parsed.sheets == [
+        "Budget\n\nItem | Year 1 | Year 2\nPersonnel | 85000 | 87550.5\nStart date | 2027-04-01",
+        "Partners\n\nRiverbend Council | In-kind | 12000",
+    ]
+    assert [document.page_content for document in to_langchain_documents(parsed)] == parsed.sheets
+
+
+def test_an_excel_file_with_no_filled_cells_is_rejected():
+    with pytest.raises(DocumentParsingError, match="no filled-in cells"):
+        parse_document(make_xlsx({"Sheet1": []}))

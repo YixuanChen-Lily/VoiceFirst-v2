@@ -26,6 +26,12 @@ interface AIChatPanelProps {
 
 type MessageType = 'ai' | 'user' | 'system' | 'action';
 
+const SOURCE_ORIGINS: Record<NonNullable<ChatSource['origin']>, string> = {
+  library: 'Document library',
+  background: 'Your background document',
+  attachment: 'Your attachment',
+};
+
 interface Message {
   id: string;
   type: MessageType;
@@ -227,7 +233,7 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const messagesRef = useRef<Message[]>([]);
-  const { updateMultipleFields, data } = useProposal();
+  const { updateMultipleFields, data, proposalId } = useProposal();
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -599,6 +605,7 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
         message: trimmed,
         history: buildHistory(messagesRef.current),
         section: activeSection,
+        proposal_id: proposalId ?? undefined,
       });
 
       const audioSrc = response.audio_base64
@@ -800,12 +807,13 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
                       </p>
                       {message.sources && message.sources.length > 0 && (
                         <div className="mt-3 pt-2 border-t border-stone-100 space-y-1">
-                          <p className="text-xs text-stone-500">Sources from the document library</p>
+                          <p className="text-xs text-stone-500">Sources</p>
                           {message.sources.map((source) => (
                             <p key={source.number} className="text-xs text-stone-600">
-                              [{source.number}] {source.title.replace(/\.(pdf|docx|txt|md)$/i, '')}
+                              [{source.number}] {source.title.replace(/\.(pdf|docx|xlsx|txt|md|csv)$/i, '')}
                               {source.section ? ` › ${source.section}` : ''}
                               {source.page ? `, page ${source.page}` : ''}
+                              <span className="text-stone-400"> · {SOURCE_ORIGINS[source.origin ?? 'library']}</span>
                             </p>
                           ))}
                         </div>

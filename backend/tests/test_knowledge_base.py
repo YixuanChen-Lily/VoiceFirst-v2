@@ -1,6 +1,6 @@
 """The knowledge base API, with in-memory stand-ins for the database and vector index."""
 
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import httpx
 import pytest
@@ -8,7 +8,7 @@ import pytest
 from backend.app.clients.document_store import DocumentRecord
 from backend.app.services import knowledge_service
 
-from .conftest import ADMIN, OTHER_STAFF, STAFF
+from .conftest import ADMIN, STAFF
 from .test_document_parsing import make_pdf
 
 STORAGE = "https://test-project.supabase.co/storage/v1"
@@ -31,13 +31,15 @@ class FakeDocumentStore:
     def get(self, document_id):
         return self.records.get(document_id)
 
-    def list(self, visible_to, scope=None, proposal_id=None):
+    def get_many(self, document_ids):
+        return [self.records[document_id] for document_id in document_ids if document_id in self.records]
+
+    def list(self, visible_to, scope=None):
         return [
             record
             for record in self.records.values()
             if (record.scope == "library" or record.owner_id == visible_to)
             and (not scope or record.scope == scope)
-            and (not proposal_id or record.proposal_id == proposal_id)
         ]
 
     def update(self, document_id, **changes):
@@ -66,7 +68,7 @@ class FakeVectorIndex:
     def remove(self, document_id, count):
         self.chunks.pop(document_id, None)
 
-    def search(self, query, owner_id: str, proposal_id: Optional[str], k: int):
+    def search(self, query, owner_id: str, document_ids: Optional[List[str]], k: int):
         words = set(query.lower().split())
         visible = [
             chunk
@@ -74,8 +76,7 @@ class FakeVectorIndex:
             for chunk in chunks
             if chunk.metadata["scope"] == "library"
             or (
-                proposal_id
-                and chunk.metadata["proposal_id"] == proposal_id
+                chunk.metadata["document_id"] in (document_ids or [])
                 and chunk.metadata["owner_id"] == owner_id
             )
         ]
@@ -137,7 +138,6 @@ def test_upload_saves_the_original_then_indexes_it(client, kb):
     assert chunks[0].metadata == {
         "document_id": body["id"],
         "scope": "library",
-        "proposal_id": None,
         "owner_id": "user-admin",
         "title": "Program Guidelines",
         "filename": "guidelines.txt",
@@ -176,25 +176,6 @@ def test_search_returns_the_closest_passages_with_their_source(client, kb):
     assert results[0]["scope"] == "library"
 
 
-def test_proposal_documents_are_only_visible_to_their_uploader_and_proposal(client, kb, sign_in):
-    _upload(client, b"Shared library note about budgets.", "library.txt")
-    sign_in(STAFF)
-    _upload(client, b"Riverbend budget is confidential.", "ours.txt", scope="proposal", proposal_id="riverbend")
-
-    def titles(**extra):
-        body = client.post("/api/documents/search", json={"query": "budget", **extra}).json()
-        return sorted(result["title"] for result in body["results"])
-
-    assert titles() == ["library.txt"]
-    assert titles(proposal_id="someone-else") == ["library.txt"]
-    assert titles(proposal_id="riverbend") == ["library.txt", "ours.txt"]
-
-    # Someone else naming the same proposal does not see the file, in search or in the list.
-    sign_in(OTHER_STAFF)
-    assert titles(proposal_id="riverbend") == ["library.txt"]
-    assert [item["filename"] for item in client.get("/api/documents").json()] == ["library.txt"]
-
-
 def test_only_admins_can_change_the_library(client, kb, sign_in):
     document_id = _upload(client).json()["id"]
 
@@ -203,32 +184,6 @@ def test_only_admins_can_change_the_library(client, kb, sign_in):
     assert client.delete(f"/api/documents/{document_id}").status_code == 403
     assert client.post(f"/api/documents/{document_id}/reindex").status_code == 403
     assert document_id in kb["store"].records
-
-
-def test_staff_can_manage_their_own_proposal_documents_but_not_others(client, kb, sign_in):
-    sign_in(STAFF)
-    uploaded = _upload(client, scope="proposal", proposal_id="riverbend")
-    assert uploaded.status_code == 201
-    document_id = uploaded.json()["id"]
-    assert kb["store"].records[document_id].owner_id == "user-staff"
-
-    sign_in(OTHER_STAFF)
-    assert client.delete(f"/api/documents/{document_id}").status_code == 404
-    assert client.post(f"/api/documents/{document_id}/reindex").status_code == 404
-
-    sign_in(STAFF)
-    assert client.delete(f"/api/documents/{document_id}").status_code == 204
-
-
-def test_list_can_be_filtered_by_scope(client, kb):
-    _upload(client, name="library.txt")
-    _upload(client, name="ours.txt", scope="proposal", proposal_id="riverbend")
-
-    everything = client.get("/api/documents").json()
-    library_only = client.get("/api/documents", params={"scope": "library"}).json()
-
-    assert sorted(item["filename"] for item in everything) == ["library.txt", "ours.txt"]
-    assert [item["filename"] for item in library_only] == ["library.txt"]
 
 
 def test_delete_removes_the_file_the_chunks_and_the_record(client, kb):
@@ -272,13 +227,11 @@ def test_a_failed_index_keeps_the_file_so_it_can_be_retried(client, kb):
 
 def test_upload_validation(client, kb):
     empty = _upload(client, b"")
-    no_proposal = _upload(client, scope="proposal")
-    bad_scope = _upload(client, scope="everyone")
+    old_proposal_scope = _upload(client, scope="proposal")
 
     assert empty.status_code == 400
-    assert no_proposal.status_code == 400
-    assert no_proposal.json()["detail"] == "proposal_id is required when scope is 'proposal'."
-    assert bad_scope.status_code == 422
+    # People's own files go through /api/files now.
+    assert old_proposal_scope.status_code == 422
 
 
 def test_storage_failure_is_reported(client, kb):

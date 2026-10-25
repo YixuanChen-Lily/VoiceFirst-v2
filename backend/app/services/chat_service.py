@@ -16,6 +16,7 @@ async def run_chat_turn(request: ChatRequest, user: User) -> ChatResponse:
             "section": request.section,
             "voice_id": request.voice_id,
             "user_id": user.id,
+            "proposal_id": request.proposal_id,
         }
     )
     return ChatResponse(

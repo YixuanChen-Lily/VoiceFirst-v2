@@ -7,6 +7,10 @@ Indexing a document runs in this order:
 
 The original is saved first so a document can be re-indexed later (for example
 after changing the chunk size) without asking anyone to upload it again.
+
+Library documents are indexed as soon as they are uploaded. A user's own files are
+only stored at first; they are indexed while a proposal lets the assistant read them
+(see proposal_files_service).
 """
 
 import logging
@@ -80,7 +84,7 @@ def _safe_name(filename: str) -> str:
 
 _HEADING_MAX_WORDS = 10
 _HEADING_MAX_CHARS = 80
-_FILE_EXTENSION = re.compile(r"\.(pdf|docx|txt|md)$", re.IGNORECASE)
+_FILE_EXTENSION = re.compile(r"\.(pdf|docx|xlsx|txt|md|csv)$", re.IGNORECASE)
 
 
 def _is_heading(line: str) -> bool:
@@ -92,6 +96,8 @@ def _is_heading(line: str) -> bool:
     if not line or len(line) > _HEADING_MAX_CHARS or len(line.split()) > _HEADING_MAX_WORDS:
         return False
     if line[0] in "-*•|" or line[-1] in ".,;:?!" or "http" in line or "@" in line:
+        return False
+    if " | " in line:  # a table or spreadsheet row
         return False
     return line[0].isupper() or line[0].isdigit()
 
@@ -150,7 +156,6 @@ def split_into_chunks(record: DocumentRecord, content: bytes) -> tuple[str, List
         chunk.metadata = {
             "document_id": record.id,
             "scope": record.scope,
-            "proposal_id": record.proposal_id,
             "owner_id": record.owner_id,
             "title": record.title,
             "filename": record.filename,
@@ -180,7 +185,7 @@ def _index(record: DocumentRecord, content: bytes) -> DocumentRecord:
     return store.update(record.id, status="ready", error=None, kind=kind, chunk_count=len(chunks))
 
 
-def ingest_document(
+def _store_original(
     *,
     content: bytes,
     filename: str,
@@ -188,10 +193,11 @@ def ingest_document(
     scope: str,
     owner_id: str,
     title: Optional[str] = None,
-    proposal_id: Optional[str] = None,
     doc_type: Optional[str] = None,
     funder: Optional[str] = None,
+    status: str,
 ) -> DocumentRecord:
+    """Save the original file and record it."""
     _require_configured()
     _ensure_bucket()
 
@@ -199,7 +205,6 @@ def ingest_document(
     record = DocumentRecord(
         id=document_id,
         scope=scope,
-        proposal_id=proposal_id if scope == "proposal" else None,
         owner_id=owner_id,
         title=(title or "").strip() or filename,
         filename=filename,
@@ -209,27 +214,90 @@ def ingest_document(
         funder=funder or None,
         storage_path=f"{scope}/{document_id}/{_safe_name(filename)}",
         size_bytes=len(content),
-        status="processing",
+        status=status,
         error=None,
         chunk_count=0,
         created_at=utc_now(),
     )
-
     storage.upload(record.storage_path, content, content_type)
-    store = get_document_store()
-    store.create(record)
+    return get_document_store().create(record)
 
+
+def ingest_document(
+    *,
+    content: bytes,
+    filename: str,
+    content_type: str,
+    owner_id: str,
+    title: Optional[str] = None,
+    doc_type: Optional[str] = None,
+    funder: Optional[str] = None,
+) -> DocumentRecord:
+    """Add a document to the shared library and index it straight away."""
+    record = _store_original(
+        content=content,
+        filename=filename,
+        content_type=content_type,
+        scope="library",
+        owner_id=owner_id,
+        title=title,
+        doc_type=doc_type,
+        funder=funder,
+        status="processing",
+    )
     try:
         return _index(record, content)
     except document_parsing_service.DocumentParsingError:
         # An unreadable file can never be indexed, so do not keep it.
-        store.delete(record.id)
+        get_document_store().delete(record.id)
         storage.delete(record.storage_path)
         raise
 
 
+def store_personal_file(*, content: bytes, filename: str, content_type: str, owner_id: str) -> DocumentRecord:
+    """Keep one of a user's own files without reading it. It becomes searchable only when indexed."""
+    return _store_original(
+        content=content,
+        filename=filename,
+        content_type=content_type,
+        scope="personal",
+        owner_id=owner_id,
+        status="stored",
+    )
+
+
+def index_document(record: DocumentRecord) -> DocumentRecord:
+    """Read a stored document and make it searchable. Parsing errors leave it stored, with the reason."""
+    _require_configured()
+    content = storage.download(record.storage_path)
+    store = get_document_store()
+    store.update(record.id, status="processing", error=None)
+    try:
+        return _index(record, content)
+    except document_parsing_service.DocumentParsingError as exc:
+        store.update(record.id, status="stored", error=str(exc))
+        raise
+
+
+def unindex_document(record: DocumentRecord) -> DocumentRecord:
+    """Delete a document's searchable pieces but keep the file."""
+    _require_configured()
+    get_vector_index().remove(record.id, record.chunk_count)
+    return get_document_store().update(record.id, status="stored", error=None, chunk_count=0)
+
+
+def get_document(document_id: str) -> Optional[DocumentRecord]:
+    _require_configured()
+    return get_document_store().get(document_id)
+
+
+def get_documents(document_ids: List[str]) -> List[DocumentRecord]:
+    _require_configured()
+    return get_document_store().get_many(document_ids)
+
+
 def _get_changeable(document_id: str, owner_id: str, is_admin: bool) -> DocumentRecord:
-    """Library documents can be changed by admins; proposal documents by whoever uploaded them."""
+    """Library documents can be changed by admins; personal files only by whoever uploaded them."""
     record = get_document_store().get(document_id)
     if record is None:
         raise DocumentNotFound(document_id)
@@ -251,12 +319,10 @@ def reindex_document(document_id: str, owner_id: str, is_admin: bool) -> Documen
     return _index(record, content)
 
 
-def list_documents(
-    owner_id: str, scope: Optional[str] = None, proposal_id: Optional[str] = None
-) -> List[DocumentRecord]:
+def list_documents(owner_id: str, scope: Optional[str] = None) -> List[DocumentRecord]:
     """The shared library plus this user's own uploads."""
     _require_configured()
-    return get_document_store().list(visible_to=owner_id, scope=scope, proposal_id=proposal_id)
+    return get_document_store().list(visible_to=owner_id, scope=scope)
 
 
 def delete_document(document_id: str, owner_id: str, is_admin: bool) -> None:
@@ -267,10 +333,15 @@ def delete_document(document_id: str, owner_id: str, is_admin: bool) -> None:
     get_document_store().delete(record.id)
 
 
-def search(query: str, owner_id: str, proposal_id: Optional[str] = None, k: int = 5) -> List[SearchResult]:
-    """Find the passages closest in meaning to the query, from the library and this user's proposal."""
+def search(
+    query: str, owner_id: str, document_ids: Optional[List[str]] = None, k: int = 5
+) -> List[SearchResult]:
+    """
+    Find the passages closest in meaning to the query, from the library and, when
+    given, these of the user's own files.
+    """
     _require_configured()
-    matches = get_vector_index().search(query, owner_id=owner_id, proposal_id=proposal_id, k=k)
+    matches = get_vector_index().search(query, owner_id=owner_id, document_ids=document_ids, k=k)
     return [
         SearchResult(
             document_id=chunk.metadata["document_id"],

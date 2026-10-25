@@ -4,7 +4,7 @@ import base64
 import re
 from datetime import datetime
 from io import BytesIO
-from typing import List
+from typing import List, Sequence
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from ..schemas.proposals import ProposalPayload
@@ -15,10 +15,17 @@ def safe_filename(value: str) -> str:
     return sanitized or "proposal"
 
 
-def build_docx_document(proposal: ProposalPayload, attachments: List[dict]) -> bytes:
+def build_docx_document(
+    proposal: ProposalPayload, attachments: List[dict], stored_files: Sequence[dict] = ()
+) -> bytes:
+    """
+    `attachments` are files sent with the export request and are written into the
+    document. `stored_files` are the files kept with the saved proposal; they are
+    listed by name so the reader knows what goes with the application.
+    """
     buffer = BytesIO()
 
-    document_xml = _build_document_xml(proposal, attachments)
+    document_xml = _build_document_xml(proposal, attachments, stored_files)
     core_xml = _build_core_properties(proposal)
     app_xml = _build_app_properties()
 
@@ -101,7 +108,9 @@ def _build_app_properties() -> str:
     )
 
 
-def _build_document_xml(proposal: ProposalPayload, attachments: List[dict]) -> str:
+def _build_document_xml(
+    proposal: ProposalPayload, attachments: List[dict], stored_files: Sequence[dict] = ()
+) -> str:
     paragraphs: List[str] = []
 
     def add_heading(text: str) -> None:
@@ -147,6 +156,13 @@ def _build_document_xml(proposal: ProposalPayload, attachments: List[dict]) -> s
     for title, body in sections:
         add_heading(title)
         add_paragraph(body or "Information pending.")
+        add_blank()
+
+    if stored_files:
+        add_heading("Supporting Documents")
+        for item in stored_files:
+            name = f"{item['label']}: {item['filename']}" if item.get("label") else item["filename"]
+            add_paragraph(f"{name} ({item['size_bytes'] / 1024:.1f} KB)")
         add_blank()
 
     if attachments:

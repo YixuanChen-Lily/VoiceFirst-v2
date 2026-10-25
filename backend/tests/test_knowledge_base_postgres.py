@@ -12,6 +12,7 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import DeterministicFakeEmbedding
 
 from backend.app.clients.document_store import DocumentRecord, DocumentStore, new_document_id, utc_now
+from backend.app.clients.proposal_file_store import ProposalFileStore
 from backend.app.clients.proposal_store import ProposalStore
 from backend.app.clients.vector_index import VectorIndex
 from backend.app.core.database import create_database_engine
@@ -32,7 +33,6 @@ def _record(**overrides) -> DocumentRecord:
     values = dict(
         id=new_document_id(),
         scope="library",
-        proposal_id=None,
         owner_id="user-a",
         title="Guidelines",
         filename="guidelines.txt",
@@ -53,10 +53,11 @@ def _record(**overrides) -> DocumentRecord:
 
 def test_document_records_round_trip(engine):
     store = DocumentStore(engine)
-    record = store.create(_record(scope="proposal", proposal_id="riverbend"))
+    record = store.create(_record(scope="personal", status="stored"))
 
     assert store.get(record.id) == record
-    assert record.id in [item.id for item in store.list("user-a", scope="proposal", proposal_id="riverbend")]
+    assert [item.id for item in store.get_many([record.id, "missing"])] == [record.id]
+    assert record.id in [item.id for item in store.list("user-a", scope="personal")]
     assert record.id not in [item.id for item in store.list("user-a", scope="library")]
     assert record.id not in [item.id for item in store.list("user-b")]
 
@@ -71,37 +72,37 @@ def test_vector_index_adds_searches_by_scope_and_removes(engine):
     index = VectorIndex(engine, DeterministicFakeEmbedding(size=64))
     library_id, ours_id, theirs_id = new_document_id(), new_document_id(), new_document_id()
 
-    def chunk(text, document_id, scope, proposal_id=None, owner_id="user-a"):
+    def chunk(text, document_id, scope, owner_id="user-a"):
         metadata = {
             "document_id": document_id,
             "scope": scope,
-            "proposal_id": proposal_id,
             "owner_id": owner_id,
             "title": text,
         }
         return Document(page_content=text, metadata=metadata)
 
     index.add(library_id, [chunk("library passage one", library_id, "library"), chunk("library passage two", library_id, "library")])
-    index.add(ours_id, [chunk("our proposal passage", ours_id, "proposal", "riverbend")])
-    index.add(theirs_id, [chunk("their proposal passage", theirs_id, "proposal", "riverbend", owner_id="user-b")])
+    index.add(ours_id, [chunk("our file passage", ours_id, "personal")])
+    index.add(theirs_id, [chunk("their file passage", theirs_id, "personal", owner_id="user-b")])
 
-    def found(owner_id, proposal_id):
+    def found(owner_id, document_ids):
         mine = {library_id, ours_id, theirs_id}
-        hits = index.search("passage", owner_id=owner_id, proposal_id=proposal_id, k=50)
+        hits = index.search("passage", owner_id=owner_id, document_ids=document_ids, k=50)
         return sorted(doc.page_content for doc, _ in hits if doc.metadata["document_id"] in mine)
 
     assert found("user-a", None) == ["library passage one", "library passage two"]
-    assert found("user-a", "riverbend") == ["library passage one", "library passage two", "our proposal passage"]
-    # Same proposal id, different uploader: each person sees only their own file.
-    assert found("user-b", "riverbend") == ["library passage one", "library passage two", "their proposal passage"]
+    assert found("user-a", [ours_id]) == ["library passage one", "library passage two", "our file passage"]
+    # Naming someone else's file does not reach it: it must also be your own.
+    assert found("user-a", [ours_id, theirs_id]) == ["library passage one", "library passage two", "our file passage"]
+    assert found("user-b", [theirs_id]) == ["library passage one", "library passage two", "their file passage"]
 
     # The identical text embeds identically, so it is the closest match.
-    top, distance = index.search("our proposal passage", owner_id="user-a", proposal_id="riverbend", k=1)[0]
-    assert top.page_content == "our proposal passage"
+    top, distance = index.search("our file passage", owner_id="user-a", document_ids=[ours_id], k=1)[0]
+    assert top.page_content == "our file passage"
     assert distance == pytest.approx(0.0, abs=1e-6)
 
     index.remove(library_id, 2)
-    assert found("user-a", "riverbend") == ["our proposal passage"]
+    assert found("user-a", [ours_id]) == ["our file passage"]
 
     index.remove(ours_id, 1)
     index.remove(theirs_id, 1)
@@ -124,3 +125,28 @@ def test_proposals_round_trip_and_stay_private(engine):
     assert store.delete(record.id, "user-b") is False
     assert store.delete(record.id, "user-a") is True
     assert store.get(record.id, "user-a") is None
+
+
+def test_proposal_file_links_round_trip_and_stay_private(engine):
+    store = ProposalFileStore(engine)
+    plan, budget = new_document_id(), new_document_id()
+    first, second = new_document_id(), new_document_id()
+
+    store.add(first, plan, "user-a", "background", "Community plan", True)
+    store.add(first, budget, "user-a", "attachment", "Budget Spreadsheet", False)
+    store.add(second, plan, "user-a", "background", None, True)
+
+    assert [link.document_id for link in store.list_for_proposal(first, "user-a")] == [plan, budget]
+    assert store.list_for_proposal(first, "user-b") == []
+    assert store.get(first, budget, "user-b") is None
+    assert store.usage("user-a")[plan] == 2
+    assert store.used_in_chat_anywhere(plan) and not store.used_in_chat_anywhere(budget)
+
+    assert store.update(first, budget, "user-a", use_in_chat=True).use_in_chat is True
+    assert store.used_in_chat_anywhere(budget)
+
+    assert store.remove(first, plan, "user-b") is False
+    assert store.remove(first, plan, "user-a") is True
+    assert sorted(store.remove_for_proposal(first, "user-a")) == [budget]
+    store.remove_for_document(plan, "user-a")
+    assert store.list_for_proposal(second, "user-a") == []

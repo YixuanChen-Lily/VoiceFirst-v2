@@ -2,11 +2,12 @@ import { useState } from 'react';
 import type { NextPage } from 'next';
 import { DraftAnalysisPage } from '../components/DraftAnalysisPage';
 import { LandingPage } from '../components/LandingPage';
+import { MyFilesPage } from '../components/files/MyFilesPage';
 import { LibraryPage } from '../components/library/LibraryPage';
 import { ProposalBuilder } from '../components/ProposalBuilder';
 import { useProposal } from '../context/ProposalContext';
 
-type WorkflowStep = 'landing' | 'draft-analysis' | 'builder' | 'library';
+type WorkflowStep = 'landing' | 'draft-analysis' | 'builder' | 'library' | 'my-files';
 
 const HomePage: NextPage = () => {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('landing');
@@ -23,6 +24,7 @@ const HomePage: NextPage = () => {
             setCurrentStep('builder');
           }}
           onOpenLibrary={() => setCurrentStep('library')}
+          onOpenMyFiles={() => setCurrentStep('my-files')}
           onOpenProposal={async (proposal) => {
             await openProposal(proposal);
             setUploadedDraft(null);
@@ -45,6 +47,8 @@ const HomePage: NextPage = () => {
       )}
 
       {currentStep === 'library' && <LibraryPage onBack={() => setCurrentStep('landing')} />}
+
+      {currentStep === 'my-files' && <MyFilesPage onBack={() => setCurrentStep('landing')} />}
 
       {currentStep === 'builder' && (
         <ProposalBuilder
