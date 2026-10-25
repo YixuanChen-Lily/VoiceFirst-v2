@@ -42,7 +42,7 @@ Required secrets:
 
 - `OPENAI_API_KEY` – used by the backend to call the Chat Completions API.
 - `ELEVENLABS_API_KEY` – used for speech-to-text and text-to-speech.
-- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_DB_URL` – the knowledge base: uploaded documents are stored in Supabase Storage and indexed in its Postgres database (`pgvector`). Without them the `/api/documents` endpoints return 503 and the rest of the app works as before.
+- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_DB_URL` – the knowledge base: uploaded documents are stored in Supabase Storage and indexed in its Postgres database (`pgvector`). Without them the `/api/documents` endpoints return 503 and the rest of the app works as before. The same settings store each user's own files (`/api/files`, and `/api/proposals/{id}/files` for the files a proposal uses); a file is only read and indexed while a proposal lets the assistant use it.
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` – used by the website to sign users in with Supabase Auth (email link). Both are public values.
 - `LIBRARY_ADMIN_EMAILS` – comma-separated emails allowed to add and remove library documents.
 - `AUTH_DISABLED` – set to `true` for local development to use the API without signing in. Never set it on a deployed backend.

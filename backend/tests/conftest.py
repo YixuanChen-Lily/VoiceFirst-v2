@@ -167,7 +167,8 @@ def mock_api(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def empty_library(monkeypatch):
-    """Chat turns find no library passages unless a test supplies some."""
+    """Chat turns find no library passages and no proposal files unless a test supplies some."""
     from backend.app.services import chat_graph
 
-    monkeypatch.setattr(chat_graph, "_search_library", lambda query, user_id: [])
+    monkeypatch.setattr(chat_graph, "_search_library", lambda query, user_id, document_ids: [])
+    monkeypatch.setattr(chat_graph, "_proposal_files", lambda user_id, proposal_id: [])

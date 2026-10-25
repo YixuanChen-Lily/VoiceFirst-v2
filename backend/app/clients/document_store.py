@@ -1,4 +1,9 @@
-"""The table that records each uploaded document: what it is, where its file is, and its status."""
+"""
+The table that records each uploaded document: what it is, where its file is, and its status.
+
+A document is either in the shared library or one of a user's own files. A user's
+file is stored once and linked to the proposals that use it (see proposal_file_store).
+"""
 
 import uuid
 from dataclasses import dataclass
@@ -13,18 +18,18 @@ documents = Table(
     "kb_documents",
     metadata,
     Column("id", String(36), primary_key=True),
-    Column("scope", String(20), nullable=False, index=True),  # "library" or "proposal"
-    Column("proposal_id", String(100), nullable=True, index=True),
+    Column("scope", String(20), nullable=False, index=True),  # "library" or "personal"
     Column("owner_id", String(64), nullable=True, index=True),  # who uploaded it
     Column("title", Text, nullable=False),
     Column("filename", Text, nullable=False),
     Column("content_type", Text, nullable=False),
-    Column("kind", String(20), nullable=True),  # "pdf", "docx" or "text"
+    Column("kind", String(20), nullable=True),  # "pdf", "docx", "xlsx" or "text"
     Column("doc_type", String(50), nullable=True),  # guideline, policy, funder programme, ...
     Column("funder", Text, nullable=True),
     Column("storage_path", Text, nullable=False),
     Column("size_bytes", Integer, nullable=False),
-    Column("status", String(20), nullable=False),  # "processing", "ready" or "failed"
+    # "stored" (kept, not searchable), "processing", "ready" (searchable) or "failed"
+    Column("status", String(20), nullable=False),
     Column("error", Text, nullable=True),
     Column("chunk_count", Integer, nullable=False, default=0),
     Column("created_at", DateTime(timezone=True), nullable=False),
@@ -35,7 +40,6 @@ documents = Table(
 class DocumentRecord:
     id: str
     scope: str
-    proposal_id: Optional[str]
     owner_id: Optional[str]
     title: str
     filename: str
@@ -73,12 +77,14 @@ class DocumentStore:
             row = connection.execute(select(documents).where(documents.c.id == document_id)).mappings().first()
         return DocumentRecord(**row) if row else None
 
-    def list(
-        self,
-        visible_to: str,
-        scope: Optional[str] = None,
-        proposal_id: Optional[str] = None,
-    ) -> List[DocumentRecord]:
+    def get_many(self, document_ids: List[str]) -> List[DocumentRecord]:
+        if not document_ids:
+            return []
+        query = select(documents).where(documents.c.id.in_(document_ids))
+        with self._engine.connect() as connection:
+            return [DocumentRecord(**row) for row in connection.execute(query).mappings()]
+
+    def list(self, visible_to: str, scope: Optional[str] = None) -> List[DocumentRecord]:
         """Library documents plus the documents this user uploaded."""
         query = (
             select(documents)
@@ -87,8 +93,6 @@ class DocumentStore:
         )
         if scope:
             query = query.where(documents.c.scope == scope)
-        if proposal_id:
-            query = query.where(documents.c.proposal_id == proposal_id)
         with self._engine.connect() as connection:
             return [DocumentRecord(**row) for row in connection.execute(query).mappings()]
 

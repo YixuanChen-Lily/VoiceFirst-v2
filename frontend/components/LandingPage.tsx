@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { Upload, FileText, MessageSquare, CheckCircle, Sparkles, ArrowRight, Library } from 'lucide-react';
+import { Upload, FileText, MessageSquare, CheckCircle, Sparkles, ArrowRight, Library, FolderOpen } from 'lucide-react';
 import { motion } from 'motion/react';
 import { MyProposals } from './proposals/MyProposals';
 import type { SavedProposal } from '../lib/api';
@@ -10,10 +10,11 @@ interface LandingPageProps {
   onStartFromScratch: () => void;
   onUploadDraft: (file: File) => void;
   onOpenLibrary: () => void;
+  onOpenMyFiles: () => void;
   onOpenProposal: (proposal: SavedProposal) => void;
 }
 
-export function LandingPage({ onStartFromScratch, onUploadDraft, onOpenLibrary, onOpenProposal }: LandingPageProps) {
+export function LandingPage({ onStartFromScratch, onUploadDraft, onOpenLibrary, onOpenMyFiles, onOpenProposal }: LandingPageProps) {
   const [dragActive, setDragActive] = useState(false);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -44,7 +45,11 @@ export function LandingPage({ onStartFromScratch, onUploadDraft, onOpenLibrary, 
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-stone-50">
-      <div className="max-w-6xl mx-auto px-6 pt-4 flex justify-end">
+      <div className="max-w-6xl mx-auto px-6 pt-4 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onOpenMyFiles} className="gap-2 text-stone-600 hover:text-stone-900">
+          <FolderOpen className="w-4 h-4" />
+          My files
+        </Button>
         <Button variant="ghost" onClick={onOpenLibrary} className="gap-2 text-stone-600 hover:text-stone-900">
           <Library className="w-4 h-4" />
           Document library

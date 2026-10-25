@@ -1,7 +1,8 @@
-"""Turn uploaded files (PDF, Word .docx, plain text) into clean text and LangChain documents."""
+"""Turn uploaded files (PDF, Word .docx, Excel .xlsx, plain text) into clean text and LangChain documents."""
 
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, time
 from io import BytesIO
 from typing import List
 from zipfile import BadZipFile, ZipFile
@@ -10,6 +11,7 @@ from docx import Document as WordDocument
 from docx.table import Table
 from docx.text.paragraph import Paragraph
 from langchain_core.documents import Document
+from openpyxl import load_workbook
 from pypdf import PdfReader
 from pypdf.errors import FileNotDecryptedError, PyPdfError
 
@@ -24,10 +26,12 @@ class DocumentParsingError(Exception):
 
 @dataclass
 class ParsedDocument:
-    kind: str  # "pdf", "docx" or "text"
+    kind: str  # "pdf", "docx", "xlsx" or "text"
     text: str
     # One entry per page for PDFs, so later features can cite a page number.
     pages: List[str] = field(default_factory=list)
+    # One entry per sheet for spreadsheets, each starting with the sheet's name.
+    sheets: List[str] = field(default_factory=list)
 
 
 def parse_document(content: bytes, filename: str = "") -> ParsedDocument:
@@ -38,10 +42,11 @@ def parse_document(content: bytes, filename: str = "") -> ParsedDocument:
     if content.startswith(PDF_MAGIC):
         return _parse_pdf(content)
     if content.startswith(ZIP_MAGIC):
-        return _parse_docx(content)
+        return _parse_office(content)
     if content.startswith(LEGACY_OFFICE_MAGIC):
         raise DocumentParsingError(
-            "Older Office files (.doc) are not supported. Save the file as .docx or PDF and upload it again."
+            "Older Office files (.doc, .xls) are not supported. "
+            "Save the file as .docx, .xlsx or PDF and upload it again."
         )
     return _parse_text(content)
 
@@ -54,7 +59,8 @@ def extract_text(content: bytes, filename: str = "") -> str:
 def to_langchain_documents(parsed: ParsedDocument) -> List[Document]:
     """
     Wrap parsed text as LangChain documents, ready for a text splitter.
-    A PDF becomes one document per page, tagged with its page number.
+    A PDF becomes one document per page, tagged with its page number, and a
+    spreadsheet one document per sheet.
     """
     if parsed.kind == "pdf":
         return [
@@ -62,6 +68,8 @@ def to_langchain_documents(parsed: ParsedDocument) -> List[Document]:
             for number, page in enumerate(parsed.pages, start=1)
             if page
         ]
+    if parsed.kind == "xlsx":
+        return [Document(page_content=sheet) for sheet in parsed.sheets]
     return [Document(page_content=parsed.text)]
 
 
@@ -85,17 +93,62 @@ def _parse_pdf(content: bytes) -> ParsedDocument:
     return ParsedDocument(kind="pdf", text=text, pages=pages)
 
 
-def _parse_docx(content: bytes) -> ParsedDocument:
+UNSUPPORTED_TYPE = "This file type is not supported. Upload a PDF, a Word (.docx) or Excel (.xlsx) file, or a text file."
+
+
+def _parse_office(content: bytes) -> ParsedDocument:
+    """Word and Excel files are both ZIP archives; tell them apart by what is inside."""
     try:
         with ZipFile(BytesIO(content)) as archive:
-            is_word = "word/document.xml" in archive.namelist()
+            names = set(archive.namelist())
     except BadZipFile as exc:
         raise DocumentParsingError("This file could not be read. It may be damaged.") from exc
-    if not is_word:
-        raise DocumentParsingError(
-            "This file type is not supported. Upload a PDF, a Word (.docx) file or a text file."
-        )
+    if "word/document.xml" in names:
+        return _parse_docx(content)
+    if "xl/workbook.xml" in names:
+        return _parse_xlsx(content)
+    raise DocumentParsingError(UNSUPPORTED_TYPE)
 
+
+def _parse_xlsx(content: bytes) -> ParsedDocument:
+    """
+    Read each sheet as rows of cells separated by " | ". Formulas give the value
+    Excel last calculated, not the formula itself.
+    """
+    try:
+        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+    except Exception as exc:
+        raise DocumentParsingError("This Excel file could not be read. It may be damaged.") from exc
+
+    sheets: List[str] = []
+    try:
+        for worksheet in workbook.worksheets:
+            rows = []
+            for row in worksheet.iter_rows(values_only=True):
+                cells = [_cell_text(value) for value in row]
+                if any(cells):
+                    rows.append(" | ".join(cells).strip(" |"))
+            if rows:
+                sheets.append(_tidy(f"{worksheet.title}\n\n" + "\n".join(rows)))
+    finally:
+        workbook.close()
+
+    if not sheets:
+        raise DocumentParsingError("This spreadsheet has no filled-in cells.")
+    return ParsedDocument(kind="xlsx", text="\n\n".join(sheets), sheets=sheets)
+
+
+def _cell_text(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    if isinstance(value, datetime) and value.time() == time(0):
+        return value.date().isoformat()  # a date with no time of day
+    return str(value).strip()
+
+
+def _parse_docx(content: bytes) -> ParsedDocument:
     try:
         document = WordDocument(BytesIO(content))
     except Exception as exc:
@@ -119,9 +172,7 @@ def _parse_text(content: bytes) -> ParsedDocument:
         text = content.decode("utf-16", errors="replace")
     elif b"\x00" in content:
         # Text files do not contain NUL bytes; this is some other binary format.
-        raise DocumentParsingError(
-            "This file type is not supported. Upload a PDF, a Word (.docx) file or a text file."
-        )
+        raise DocumentParsingError(UNSUPPORTED_TYPE)
     else:
         try:
             text = content.decode("utf-8-sig")

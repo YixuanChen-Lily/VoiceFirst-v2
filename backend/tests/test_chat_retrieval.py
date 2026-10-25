@@ -1,12 +1,16 @@
-"""Library passages in chat: looked up, given to the model, cited, and kept out of fields and speech."""
+"""Library and proposal-file passages in chat: looked up, given to the model, cited, and kept out of fields and speech."""
 
 import json
+from datetime import datetime, timezone
 
 import httpx
 import pytest
 
+from backend.app.clients.document_store import DocumentRecord
+from backend.app.clients.proposal_file_store import ProposalFileLink
 from backend.app.schemas.documents import SearchResult
 from backend.app.services import chat_graph
+from backend.app.services.proposal_files_service import ProposalFile
 
 from .conftest import OPENAI_CHAT_URL, TTS_URL_PREFIX, openai_completion, sent_json
 
@@ -38,8 +42,8 @@ def library(monkeypatch):
     calls = []
     results = {"value": [CASH_RULE, FAR_AWAY]}
 
-    def fake_search(query, user_id):
-        calls.append((query, user_id))
+    def fake_search(query, user_id, document_ids):
+        calls.append((query, user_id, document_ids))
         if isinstance(results["value"], Exception):
             raise results["value"]
         return results["value"]
@@ -60,8 +64,8 @@ def _reply(mock_api, chat_reply, field_updates=None):
     )
 
 
-def _chat(client, message="How much cash do we need to contribute to CORP?", section=7):
-    return client.post("/api/assist/chat", json={"message": message, "section": section})
+def _chat(client, message="How much cash do we need to contribute to CORP?", section=7, **extra):
+    return client.post("/api/assist/chat", json={"message": message, "section": section, **extra})
 
 
 def test_close_passages_are_given_to_the_model_numbered(client, mock_api, library, tts):
@@ -76,7 +80,7 @@ def test_close_passages_are_given_to_the_model_numbered(client, mock_api, librar
     assert "[1] CORP Program Guidelines.txt › Project approval criteria\n- the applicant must contribute" in passages["content"]
     assert "Mileage" not in passages["content"]  # too far in meaning to be used
     assert messages[-1] == {"role": "user", "content": "How much cash do we need to contribute to CORP?"}
-    assert library["calls"] == [("How much cash do we need to contribute to CORP?", "user-staff")]
+    assert library["calls"] == [("How much cash do we need to contribute to CORP?", "user-staff", [])]
 
 
 def test_cited_passages_come_back_as_sources(client, mock_api, library, tts):
@@ -92,6 +96,7 @@ def test_cited_passages_come_back_as_sources(client, mock_api, library, tts):
             "title": "CORP Program Guidelines.txt",
             "section": "Project approval criteria",
             "page": None,
+            "origin": "library",
         }
     ]
 
@@ -139,3 +144,89 @@ def test_graph_runs_retrieval_before_answering():
 
     assert ("classify", "retrieve") in edges
     assert ("retrieve", "generate_simple") in edges and ("retrieve", "generate_complex") in edges
+
+
+def _file(document_id, title, role, use_in_chat, status="ready", label=None):
+    now = datetime.now(timezone.utc)
+    record = DocumentRecord(
+        id=document_id, scope="personal", owner_id="user-staff", title=title, filename=title,
+        content_type="application/pdf", kind="pdf", doc_type=None, funder=None,
+        storage_path=f"personal/{document_id}/{title}", size_bytes=1000, status=status,
+        error=None, chunk_count=3 if status == "ready" else 0, created_at=now,
+    )
+    link = ProposalFileLink("riverbend", document_id, "user-staff", role, label, use_in_chat, now)
+    return ProposalFile(link=link, record=record)
+
+
+BUDGET = SearchResult(
+    document_id="doc-budget",
+    title="budget.xlsx",
+    filename="budget.xlsx",
+    scope="personal",
+    page=None,
+    section="Budget",
+    text="budget › Budget\n\nPersonnel | 85000",
+    distance=0.2,
+)
+
+
+@pytest.fixture
+def proposal_files(monkeypatch):
+    files = [
+        _file("doc-plan", "Community plan.pdf", "background", True),
+        _file("doc-budget", "budget.xlsx", "attachment", True, label="Budget Spreadsheet"),
+        _file("doc-resume", "resume.pdf", "attachment", False, status="stored", label="Staff Resumes"),
+    ]
+    calls = []
+
+    def fake_files(user_id, proposal_id):
+        calls.append((user_id, proposal_id))
+        return files
+
+    monkeypatch.setattr(chat_graph, "_proposal_files", fake_files)
+    return {"files": files, "calls": calls}
+
+
+def test_the_proposals_readable_files_are_searched_and_named(client, mock_api, library, proposal_files, tts):
+    library["value"] = [BUDGET, CASH_RULE]
+    openai = _reply(mock_api, "Personnel is $85,000 [1].")
+
+    body = _chat(client, message="What is our personnel budget?", proposal_id="riverbend").json()
+
+    assert proposal_files["calls"] == [("user-staff", "riverbend")]
+    # Only switched-on, indexed files are searched; the resume is not.
+    assert library["calls"][0][2] == ["doc-plan", "doc-budget"]
+
+    contents = [message["content"] for message in sent_json(openai)["messages"]]
+    files_message = next(content for content in contents if "part of the user's proposal" in content)
+    assert "- Community plan.pdf (background document, readable)" in files_message
+    assert "- Budget Spreadsheet: budget.xlsx (attachment, readable)" in files_message
+    assert "- Staff Resumes: resume.pdf (attachment, name only)" in files_message
+    passages_message = next(content for content in contents if "cite it right after" in content)
+    assert "[1] budget.xlsx › Budget [the user's attachment]\nPersonnel | 85000" in passages_message
+
+    assert body["sources"][0]["origin"] == "attachment"
+
+
+def test_without_a_proposal_only_the_library_is_searched(client, mock_api, library, proposal_files, tts):
+    openai = _reply(mock_api, "Hello.")
+
+    _chat(client, message="Hi there")
+
+    assert proposal_files["calls"] == []
+    assert library["calls"][0][2] == []
+    assert not any("part of the user's proposal" in m["content"] for m in sent_json(openai)["messages"])
+
+
+def test_a_failure_loading_files_still_searches_the_library(client, mock_api, library, monkeypatch, tts):
+    def broken(user_id, proposal_id):
+        raise RuntimeError("database unreachable")
+
+    monkeypatch.setattr(chat_graph, "_proposal_files", broken)
+    _reply(mock_api, "You need at least 10% in cash [1].")
+
+    response = _chat(client, proposal_id="riverbend")
+
+    assert response.status_code == 200
+    assert library["calls"][0][2] == []
+    assert response.json()["sources"][0]["origin"] == "library"

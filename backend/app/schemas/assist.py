@@ -22,16 +22,24 @@ class ChatRequest(BaseModel):
         default=None,
         description="Current proposal section index to guide structured extraction."
     )
+    proposal_id: Optional[str] = Field(
+        default=None,
+        description="The saved proposal being worked on, so the assistant can use its files."
+    )
 
 
 class ChatSource(BaseModel):
-    """A library passage the reply cites as [number]."""
+    """A passage the reply cites as [number]."""
 
     number: int
     document_id: str
     title: str
     section: Optional[str] = None
     page: Optional[int] = None
+    origin: Literal["library", "background", "attachment"] = Field(
+        default="library",
+        description="The shared library, or one of the proposal's background documents or attachments.",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -44,7 +52,7 @@ class ChatResponse(BaseModel):
     )
     sources: List[ChatSource] = Field(
         default_factory=list,
-        description="Library passages cited in the reply, in citation order."
+        description="Passages cited in the reply, in citation order."
     )
 
 

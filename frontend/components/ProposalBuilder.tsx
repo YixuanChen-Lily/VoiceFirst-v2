@@ -29,7 +29,7 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
   const [isExporting, setIsExporting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
   const totalSections = 12;
-  const { data, saveStatus, lastSavedAt, saveError, hasUnsavedChanges, saveNow } = useProposal();
+  const { data, proposalId, saveStatus, lastSavedAt, saveError, hasUnsavedChanges, saveNow } = useProposal();
   const isSaving = saveStatus === 'saving';
 
   const handleNext = () => {
@@ -96,11 +96,8 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
 
     try {
       const payload = buildPayload();
-      const attachments: File[] = [...data.communityDocuments, ...data.fundingDocuments];
-      if (existingDraft) {
-        attachments.push(existingDraft);
-      }
-      const blob = await exportProposalDoc(payload, attachments);
+      const attachments: File[] = existingDraft ? [existingDraft] : [];
+      const blob = await exportProposalDoc(payload, attachments, proposalId);
       const safeTitle = payload.projectTitle
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')

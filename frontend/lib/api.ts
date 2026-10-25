@@ -58,6 +58,8 @@ export interface ChatRequestBody {
   history?: ConversationMessage[];
   voice_id?: string;
   section?: number;
+  /** The saved proposal being worked on, so the assistant can use its files. */
+  proposal_id?: string;
 }
 
 export interface ChatSource {
@@ -66,13 +68,15 @@ export interface ChatSource {
   title: string;
   section?: string | null;
   page?: number | null;
+  /** The shared library, or one of the proposal's own files. */
+  origin?: 'library' | 'background' | 'attachment';
 }
 
 export interface ChatResponseBody {
   message: string;
   audio_base64?: string;
   field_updates?: Record<string, string>;
-  /** Library passages cited in the reply as [1], [2], ... */
+  /** Passages cited in the reply as [1], [2], ... */
   sources?: ChatSource[];
 }
 
@@ -208,12 +212,15 @@ export async function synthesizeSpeech(
 export async function exportProposalDoc(
   payload: ProposalPayload,
   attachments: File[],
+  /** A saved proposal's stored files are listed in the export. */
+  proposalId?: string | null,
 ): Promise<Blob> {
   const formData = new FormData();
   formData.append('payload', JSON.stringify(serializeProposalPayload(payload)));
   attachments.forEach((file) => {
     formData.append('attachments', file, file.name);
   });
+  if (proposalId) formData.append('proposal_id', proposalId);
 
   const response = await apiFetch('/proposals/export', {
     method: 'POST',
@@ -247,13 +254,13 @@ export async function fetchCurrentUser(): Promise<CurrentUser> {
   return handleResponse<CurrentUser>(response);
 }
 
-export type DocumentScope = 'library' | 'proposal';
-export type DocumentStatus = 'processing' | 'ready' | 'failed';
+export type DocumentScope = 'library' | 'personal';
+/** 'stored' means kept but not searchable; 'ready' means the assistant can search it. */
+export type DocumentStatus = 'stored' | 'processing' | 'ready' | 'failed';
 
 export interface KnowledgeDocument {
   id: string;
   scope: DocumentScope;
-  proposal_id: string | null;
   title: string;
   filename: string;
   kind: string | null;
@@ -267,8 +274,6 @@ export interface KnowledgeDocument {
 }
 
 export interface DocumentUploadOptions {
-  scope?: DocumentScope;
-  proposalId?: string;
   title?: string;
   docType?: string;
   funder?: string;
@@ -294,14 +299,14 @@ export async function listDocuments(scope?: DocumentScope): Promise<KnowledgeDoc
   return (await response.json()) as KnowledgeDocument[];
 }
 
+/** Add a document to the shared library (library admins only). */
 export async function uploadDocument(
   file: File,
   options: DocumentUploadOptions = {},
 ): Promise<KnowledgeDocument> {
   const formData = new FormData();
   formData.append('file', file, file.name);
-  formData.append('scope', options.scope ?? 'library');
-  if (options.proposalId) formData.append('proposal_id', options.proposalId);
+  formData.append('scope', 'library');
   if (options.title?.trim()) formData.append('title', options.title.trim());
   if (options.docType) formData.append('doc_type', options.docType);
   if (options.funder?.trim()) formData.append('funder', options.funder.trim());
@@ -369,5 +374,127 @@ export async function saveProposal(proposalId: string, data: Record<string, unkn
 
 export async function deleteProposal(proposalId: string): Promise<void> {
   const response = await apiFetch(`/proposals/${proposalId}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error(await errorMessage(response));
+}
+
+export type FileRole = 'background' | 'attachment';
+
+/** A file in the user's My files. */
+export interface MyFile {
+  id: string;
+  title: string;
+  filename: string;
+  kind: string | null;
+  size_bytes: number;
+  status: DocumentStatus;
+  error: string | null;
+  created_at: string;
+  /** How many of the user's proposals use this file. */
+  used_in: number;
+}
+
+/** A file as one proposal uses it. */
+export interface ProposalFile {
+  document_id: string;
+  title: string;
+  filename: string;
+  kind: string | null;
+  size_bytes: number;
+  status: DocumentStatus;
+  error: string | null;
+  role: FileRole;
+  label: string | null;
+  /** Whether the assistant may read this file in this proposal. */
+  use_in_chat: boolean;
+  added_at: string;
+}
+
+export interface ProposalFileOptions {
+  role: FileRole;
+  label?: string;
+  useInChat?: boolean;
+}
+
+export async function listMyFiles(): Promise<MyFile[]> {
+  const response = await apiFetch('/files');
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as MyFile[];
+}
+
+/** Keep a file in My files without adding it to a proposal. */
+export async function uploadMyFile(file: File): Promise<MyFile> {
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+  const response = await apiFetch('/files', { method: 'POST', body: formData });
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as MyFile;
+}
+
+/** Delete a file from My files and from every proposal that uses it. */
+export async function deleteMyFile(documentId: string): Promise<void> {
+  const response = await apiFetch(`/files/${documentId}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error(await errorMessage(response));
+}
+
+export async function listProposalFiles(proposalId: string): Promise<ProposalFile[]> {
+  const response = await apiFetch(`/proposals/${proposalId}/files`);
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as ProposalFile[];
+}
+
+/** Upload a new file: it is kept in My files and added to the proposal. */
+export async function uploadProposalFile(
+  proposalId: string,
+  file: File,
+  options: ProposalFileOptions,
+): Promise<ProposalFile> {
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+  formData.append('role', options.role);
+  if (options.label) formData.append('label', options.label);
+  if (options.useInChat !== undefined) formData.append('use_in_chat', String(options.useInChat));
+  const response = await apiFetch(`/proposals/${proposalId}/files/upload`, { method: 'POST', body: formData });
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as ProposalFile;
+}
+
+/** Add a file that is already in My files to the proposal. */
+export async function addFileToProposal(
+  proposalId: string,
+  documentId: string,
+  options: ProposalFileOptions,
+): Promise<ProposalFile> {
+  const response = await apiFetch(`/proposals/${proposalId}/files`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      document_id: documentId,
+      role: options.role,
+      label: options.label,
+      use_in_chat: options.useInChat,
+    }),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as ProposalFile;
+}
+
+/** Switch whether the assistant may read this file in this proposal. */
+export async function setProposalFileUseInChat(
+  proposalId: string,
+  documentId: string,
+  useInChat: boolean,
+): Promise<ProposalFile> {
+  const response = await apiFetch(`/proposals/${proposalId}/files/${documentId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ use_in_chat: useInChat }),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as ProposalFile;
+}
+
+/** Take a file out of the proposal. It stays in My files. */
+export async function removeFileFromProposal(proposalId: string, documentId: string): Promise<void> {
+  const response = await apiFetch(`/proposals/${proposalId}/files/${documentId}`, { method: 'DELETE' });
   if (!response.ok) throw new Error(await errorMessage(response));
 }

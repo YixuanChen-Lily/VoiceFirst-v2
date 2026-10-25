@@ -4,35 +4,38 @@ import { SectionHeader } from './SectionHeader';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { Label } from '../ui/label';
-import { Paperclip, Upload, Plus, X } from 'lucide-react';
+import { Paperclip, Upload, Plus, CheckCircle2 } from 'lucide-react';
+import { useProposal } from '../../context/ProposalContext';
+import { AddFromMyFiles } from '../files/AddFromMyFiles';
+import { ProposalFileList } from '../files/ProposalFileList';
+import { useProposalFiles } from '../files/useProposalFiles';
 
-interface Attachment {
-  name: string;
-  file?: File;
-}
+const RECOMMENDED = [
+  { key: 'strategicPlan', label: 'Community Strategic Plan' },
+  { key: 'lettersOfSupport', label: 'Letters of Support' },
+  { key: 'staffResumes', label: 'Staff Resumes / Bios' },
+  { key: 'budgetSpreadsheet', label: 'Detailed Budget Spreadsheet' },
+  { key: 'facilityPlans', label: 'Facility Plans / Designs' },
+];
+
+const OTHER_LABEL = 'Additional Document';
 
 export function AttachmentsSection() {
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [checklist, setChecklist] = useState({
-    strategicPlan: false,
-    lettersOfSupport: false,
-    staffResumes: false,
-    budgetSpreadsheet: false,
-    facilityPlans: false,
-  });
+  const { data, updateField } = useProposal();
+  const files = useProposalFiles();
+  const attachments = files.files.filter((file) => file.role === 'attachment');
+  const [dragActive, setDragActive] = useState(false);
+  const checklist = data.attachmentChecklist ?? {};
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, label: string) => {
-    if (e.target.files && e.target.files[0]) {
-      setAttachments([...attachments, { name: label, file: e.target.files[0] }]);
-    }
+  // Attachments start with the assistant switched off; each file can be switched on below.
+  const uploadAll = (list: FileList | null, label: string) => {
+    Array.from(list ?? []).forEach((file) => files.upload(file, { role: 'attachment', label }));
   };
 
-  const removeAttachment = (index: number) => {
-    setAttachments(attachments.filter((_, i) => i !== index));
-  };
+  const hasFile = (label: string) => attachments.some((file) => file.label === label);
 
-  const handleChecklistChange = (key: keyof typeof checklist) => {
-    setChecklist({ ...checklist, [key]: !checklist[key] });
+  const toggle = (key: string) => {
+    updateField('attachmentChecklist', { ...checklist, [key]: !checklist[key] });
   };
 
   return (
@@ -46,188 +49,112 @@ export function AttachmentsSection() {
         />
 
         <div className="space-y-6">
-          <div className="p-6 bg-stone-50 border-2 border-dashed border-stone-300 rounded-lg">
+          <div
+            className={`p-6 border-2 border-dashed rounded-lg transition-colors ${
+              dragActive ? 'border-emerald-500 bg-emerald-50' : 'bg-stone-50 border-stone-300'
+            }`}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragActive(true);
+            }}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragActive(false);
+              uploadAll(event.dataTransfer.files, OTHER_LABEL);
+            }}
+          >
             <div className="text-center mb-4">
               <Upload className="w-12 h-12 mx-auto mb-3 text-stone-400" />
               <h3 className="text-stone-700 mb-2">Drag & Drop Files Here</h3>
-              <p className="text-sm text-stone-500 mb-4">or click below to browse</p>
+              <p className="text-sm text-stone-500 mb-4">or upload each recommended document below</p>
             </div>
 
             <div className="space-y-3">
               <h4 className="text-sm text-stone-600 mb-3">📋 Recommended Documents Checklist:</h4>
-              
+
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-white rounded border border-stone-200">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="strategic-plan"
-                      checked={checklist.strategicPlan}
-                      onCheckedChange={() => handleChecklistChange('strategicPlan')}
-                    />
-                    <Label htmlFor="strategic-plan" className="cursor-pointer">
-                      Community Strategic Plan
-                    </Label>
-                  </div>
-                  <Button variant="outline" size="sm" className="gap-2" asChild>
-                    <label className="cursor-pointer">
-                      <Upload className="w-3 h-3" />
-                      Upload
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.doc,.docx"
-                        onChange={(e) => handleFileUpload(e, 'Community Strategic Plan')}
-                      />
-                    </label>
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-white rounded border border-stone-200">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="letters-support"
-                      checked={checklist.lettersOfSupport}
-                      onCheckedChange={() => handleChecklistChange('lettersOfSupport')}
-                    />
-                    <Label htmlFor="letters-support" className="cursor-pointer">
-                      Letters of Support
-                    </Label>
-                  </div>
-                  <Button variant="outline" size="sm" className="gap-2" asChild>
-                    <label className="cursor-pointer">
-                      <Upload className="w-3 h-3" />
-                      Upload
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.doc,.docx"
-                        onChange={(e) => handleFileUpload(e, 'Letters of Support')}
-                      />
-                    </label>
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-white rounded border border-stone-200">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="staff-resumes"
-                      checked={checklist.staffResumes}
-                      onCheckedChange={() => handleChecklistChange('staffResumes')}
-                    />
-                    <Label htmlFor="staff-resumes" className="cursor-pointer">
-                      Staff Resumes / Bios
-                    </Label>
-                  </div>
-                  <Button variant="outline" size="sm" className="gap-2" asChild>
-                    <label className="cursor-pointer">
-                      <Upload className="w-3 h-3" />
-                      Upload
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.doc,.docx"
-                        onChange={(e) => handleFileUpload(e, 'Staff Resumes')}
-                      />
-                    </label>
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-white rounded border border-stone-200">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="budget-spreadsheet"
-                      checked={checklist.budgetSpreadsheet}
-                      onCheckedChange={() => handleChecklistChange('budgetSpreadsheet')}
-                    />
-                    <Label htmlFor="budget-spreadsheet" className="cursor-pointer">
-                      Detailed Budget Spreadsheet
-                    </Label>
-                  </div>
-                  <Button variant="outline" size="sm" className="gap-2" asChild>
-                    <label className="cursor-pointer">
-                      <Upload className="w-3 h-3" />
-                      Upload
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".xlsx,.xls,.csv"
-                        onChange={(e) => handleFileUpload(e, 'Budget Spreadsheet')}
-                      />
-                    </label>
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-white rounded border border-stone-200">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="facility-plans"
-                      checked={checklist.facilityPlans}
-                      onCheckedChange={() => handleChecklistChange('facilityPlans')}
-                    />
-                    <Label htmlFor="facility-plans" className="cursor-pointer">
-                      Facility Plans / Designs
-                    </Label>
-                  </div>
-                  <Button variant="outline" size="sm" className="gap-2" asChild>
-                    <label className="cursor-pointer">
-                      <Upload className="w-3 h-3" />
-                      Upload
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.png,.jpg"
-                        onChange={(e) => handleFileUpload(e, 'Facility Plans')}
-                      />
-                    </label>
-                  </Button>
-                </div>
+                {RECOMMENDED.map(({ key, label }) => {
+                  const uploaded = hasFile(label);
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between p-3 bg-white rounded border border-stone-200"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          id={`checklist-${key}`}
+                          checked={uploaded || Boolean(checklist[key])}
+                          disabled={uploaded}
+                          onCheckedChange={() => toggle(key)}
+                        />
+                        <Label htmlFor={`checklist-${key}`} className="cursor-pointer">
+                          {label}
+                        </Label>
+                        {uploaded && (
+                          <span className="flex items-center gap-1 text-xs text-emerald-700">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Uploaded
+                          </span>
+                        )}
+                      </div>
+                      <Button variant="outline" size="sm" className="gap-2" asChild>
+                        <label className="cursor-pointer">
+                          <Upload className="w-3 h-3" />
+                          Upload
+                          <input
+                            type="file"
+                            multiple
+                            className="hidden"
+                            onChange={(event) => {
+                              uploadAll(event.target.files, label);
+                              event.target.value = '';
+                            }}
+                          />
+                        </label>
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
 
-              <div className="pt-3 border-t border-stone-200">
-                <Button variant="outline" className="w-full gap-2" asChild>
+              <div className="pt-3 border-t border-stone-200 flex flex-wrap gap-2">
+                <Button variant="outline" className="flex-1 gap-2" asChild>
                   <label className="cursor-pointer">
                     <Plus className="w-4 h-4" />
                     Add Another Attachment
                     <input
                       type="file"
+                      multiple
                       className="hidden"
-                      onChange={(e) => handleFileUpload(e, 'Additional Document')}
+                      onChange={(event) => {
+                        uploadAll(event.target.files, OTHER_LABEL);
+                        event.target.value = '';
+                      }}
                     />
                   </label>
                 </Button>
+                <AddFromMyFiles actions={files} options={{ role: 'attachment', label: OTHER_LABEL }} />
               </div>
             </div>
           </div>
 
-          {attachments.length > 0 && (
+          {files.error && (
+            <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+              {files.error}
+            </p>
+          )}
+
+          {(attachments.length > 0 || files.isAdding) && (
             <div className="p-4 bg-emerald-50 border-2 border-emerald-200 rounded-lg">
-              <h4 className="text-emerald-900 mb-3">📎 Uploaded Files ({attachments.length})</h4>
-              <div className="space-y-2">
-                {attachments.map((attachment, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-2 bg-white rounded border border-emerald-200"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Paperclip className="w-4 h-4 text-emerald-600" />
-                      <div>
-                        <p className="text-sm">{attachment.name}</p>
-                        {attachment.file && (
-                          <p className="text-xs text-stone-500">{attachment.file.name}</p>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeAttachment(index)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
+              <h4 className="text-emerald-900 mb-1">
+                📎 Uploaded Files ({attachments.length}){files.isAdding ? ' · uploading…' : ''}
+              </h4>
+              <p className="text-xs text-stone-600 mb-3">
+                Saved with this proposal. The assistant knows each file's name; tick the box to let it read the file
+                too, for example a budget it should check your numbers against.
+              </p>
+              <ProposalFileList files={attachments} actions={files} emptyText="" />
             </div>
           )}
 

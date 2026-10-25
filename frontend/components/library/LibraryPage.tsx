@@ -9,6 +9,7 @@ import {
   uploadDocument,
   type KnowledgeDocument,
 } from '../../lib/api';
+import { formatDate, formatSize } from '../../lib/format';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
@@ -31,15 +32,6 @@ const DOCUMENT_TYPES: { value: string; label: string }[] = [
 const TYPE_LABELS: Record<string, string> = Object.fromEntries(
   DOCUMENT_TYPES.map(({ value, label }) => [value, label]),
 );
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-}
 
 function StatusBadge({ document }: { document: KnowledgeDocument }) {
   if (document.status === 'ready') {
@@ -94,7 +86,7 @@ export function LibraryPage({ onBack }: LibraryPageProps) {
     setUploadError(null);
     setNotice(null);
     try {
-      const uploaded = await uploadDocument(file, { scope: 'library', title, docType, funder });
+      const uploaded = await uploadDocument(file, { title, docType, funder });
       setNotice(`"${uploaded.title}" was added and split into ${uploaded.chunk_count} passages.`);
       setFile(null);
       setTitle('');
@@ -160,12 +152,12 @@ export function LibraryPage({ onBack }: LibraryPageProps) {
               <h2 className="text-stone-900 mb-4">Add a document</h2>
               <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="library-file">File (PDF, Word .docx or text, up to 20 MB)</Label>
+                  <Label htmlFor="library-file">File (PDF, Word .docx, Excel .xlsx or text, up to 20 MB)</Label>
                   <Input
                     id="library-file"
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.docx,.txt,.md"
+                    accept=".pdf,.docx,.xlsx,.txt,.md,.csv"
                     onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                     required
                   />

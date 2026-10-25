@@ -1,6 +1,6 @@
 import json
 from io import BytesIO
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from starlette.concurrency import run_in_threadpool
@@ -14,7 +14,14 @@ from ...schemas.proposals import (
     ProposalSummary,
     SavedProposal,
 )
-from ...services import analysis_service, document_parsing_service, export_service, proposal_service
+from ...services import (
+    analysis_service,
+    document_parsing_service,
+    export_service,
+    knowledge_service,
+    proposal_files_service,
+    proposal_service,
+)
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
@@ -45,6 +52,8 @@ async def analyze_draft(file: UploadFile = File(...)) -> DraftAnalysisResponse:
 async def export_proposal(
     payload: str = Form(...),
     attachments: List[UploadFile] = File(default_factory=list),
+    proposal_id: Optional[str] = Form(None),
+    user: User = Depends(get_current_user),
 ):
     try:
         data = json.loads(payload)
@@ -67,10 +76,13 @@ async def export_proposal(
             }
         )
 
+    stored_files = await _stored_files(user.id, proposal_id) if proposal_id else []
+
     document_bytes = await run_in_threadpool(
         export_service.build_docx_document,
         proposal,
         attachment_blobs,
+        stored_files,
     )
 
     filename = f"{export_service.safe_filename(proposal.project_title)}-draft-proposal.docx"
@@ -79,6 +91,20 @@ async def export_proposal(
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
+
+
+async def _stored_files(user_id: str, proposal_id: str) -> List[dict]:
+    """The files kept with the saved proposal, for the export. None when file storage is not set up."""
+    try:
+        files = await run_in_threadpool(proposal_files_service.list_proposal_files, user_id, proposal_id)
+    except (knowledge_service.KnowledgeBaseNotConfigured, proposal_service.ProposalsNotConfigured):
+        return []
+    except proposal_service.ProposalNotFound as exc:
+        raise HTTPException(status_code=404, detail="Proposal not found.") from exc
+    return [
+        {"filename": item.record.filename, "label": item.link.label, "size_bytes": item.record.size_bytes}
+        for item in files
+    ]
 
 
 async def _run(function, *args):
@@ -124,4 +150,6 @@ async def save_proposal(
 @router.delete("/{proposal_id}", status_code=204)
 async def delete_proposal(proposal_id: str, user: User = Depends(get_current_user)) -> Response:
     await _run(proposal_service.delete_proposal, proposal_id, user.id)
+    # The files stay in My files; only their links to this proposal go.
+    await run_in_threadpool(proposal_files_service.forget_proposal, user.id, proposal_id)
     return Response(status_code=204)

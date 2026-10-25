@@ -3,12 +3,12 @@
 from backend.app.clients.document_store import DocumentRecord, utc_now
 from backend.app.services.knowledge_service import _is_heading, split_into_chunks
 
-from .test_document_parsing import make_pdf
+from .test_document_parsing import make_pdf, make_xlsx
 
 
 def _record(title: str = "Program Guide.pdf") -> DocumentRecord:
     return DocumentRecord(
-        id="doc-1", scope="library", proposal_id=None, owner_id="user-1", title=title,
+        id="doc-1", scope="library", owner_id="user-1", title=title,
         filename=title, content_type="text/plain", kind=None, doc_type=None, funder=None,
         storage_path="x", size_bytes=1, status="processing", error=None, chunk_count=0,
         created_at=utc_now(),
@@ -23,6 +23,7 @@ def test_heading_detection():
         "Ineligible expenditures include:",
         "- the applicant must contribute cash",
         "| up to 80%",
+        "Youth coordinator salary | 62000 | 63860",
         "Source: https://example.gc.ca/page",
         "Email: someone@example.ca",
         "lowercase start is not a heading",
@@ -70,3 +71,12 @@ def test_a_document_with_no_headings_is_labelled_with_its_title():
 
     assert chunk.page_content == "notes\n\njust some lowercase notes, nothing more."
     assert chunk.metadata["section"] is None
+
+
+def test_spreadsheet_chunks_are_labelled_with_their_sheet():
+    content = make_xlsx({"Budget": [["Item", "Year 1"], ["Youth coordinator salary", 62000]]})
+
+    (chunk,) = split_into_chunks(_record("budget.xlsx"), content)[1]
+
+    assert chunk.page_content.startswith("budget › Budget\n\n")
+    assert chunk.metadata["section"] == "Budget"
