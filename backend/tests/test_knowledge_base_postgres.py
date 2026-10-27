@@ -95,6 +95,9 @@ def test_vector_index_adds_searches_by_scope_and_removes(engine):
     # Naming someone else's file does not reach it: it must also be your own.
     assert found("user-a", [ours_id, theirs_id]) == ["library passage one", "library passage two", "our file passage"]
     assert found("user-b", [theirs_id]) == ["library passage one", "library passage two", "their file passage"]
+    # Without the library: only your own named files.
+    hits = index.search("passage", owner_id="user-a", document_ids=[ours_id, theirs_id], k=50, include_library=False)
+    assert sorted(doc.page_content for doc, _ in hits) == ["our file passage"]
 
     # The identical text embeds identically, so it is the closest match.
     top, distance = index.search("our file passage", owner_id="user-a", document_ids=[ours_id], k=1)[0]

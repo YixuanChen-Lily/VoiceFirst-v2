@@ -68,13 +68,13 @@ class FakeVectorIndex:
     def remove(self, document_id, count):
         self.chunks.pop(document_id, None)
 
-    def search(self, query, owner_id: str, document_ids: Optional[List[str]], k: int):
+    def search(self, query, owner_id: str, document_ids: Optional[List[str]], k: int, include_library: bool = True):
         words = set(query.lower().split())
         visible = [
             chunk
             for chunks in self.chunks.values()
             for chunk in chunks
-            if chunk.metadata["scope"] == "library"
+            if (include_library and chunk.metadata["scope"] == "library")
             or (
                 chunk.metadata["document_id"] in (document_ids or [])
                 and chunk.metadata["owner_id"] == owner_id
