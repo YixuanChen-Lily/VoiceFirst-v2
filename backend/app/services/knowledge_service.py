@@ -334,14 +334,22 @@ def delete_document(document_id: str, owner_id: str, is_admin: bool) -> None:
 
 
 def search(
-    query: str, owner_id: str, document_ids: Optional[List[str]] = None, k: int = 5
+    query: str,
+    owner_id: str,
+    document_ids: Optional[List[str]] = None,
+    k: int = 5,
+    include_library: bool = True,
 ) -> List[SearchResult]:
     """
     Find the passages closest in meaning to the query, from the library and, when
-    given, these of the user's own files.
+    given, these of the user's own files. Without the library, from those files only.
     """
     _require_configured()
-    matches = get_vector_index().search(query, owner_id=owner_id, document_ids=document_ids, k=k)
+    if not include_library and not document_ids:
+        return []
+    matches = get_vector_index().search(
+        query, owner_id=owner_id, document_ids=document_ids, k=k, include_library=include_library
+    )
     return [
         SearchResult(
             document_id=chunk.metadata["document_id"],

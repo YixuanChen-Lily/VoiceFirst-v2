@@ -42,13 +42,30 @@ def library(monkeypatch):
     calls = []
     results = {"value": [CASH_RULE, FAR_AWAY]}
 
+    def fake_search(query, user_id):
+        calls.append((query, user_id))
+        if isinstance(results["value"], Exception):
+            raise results["value"]
+        return results["value"]
+
+    monkeypatch.setattr(chat_graph, "_search_library", fake_search)
+    results["calls"] = calls
+    return results
+
+
+@pytest.fixture
+def file_search(monkeypatch):
+    """Let a test choose what the search of the proposal's own files returns."""
+    calls = []
+    results = {"value": []}
+
     def fake_search(query, user_id, document_ids):
         calls.append((query, user_id, document_ids))
         if isinstance(results["value"], Exception):
             raise results["value"]
         return results["value"]
 
-    monkeypatch.setattr(chat_graph, "_search_library", fake_search)
+    monkeypatch.setattr(chat_graph, "_search_files", fake_search)
     results["calls"] = calls
     return results
 
@@ -80,7 +97,7 @@ def test_close_passages_are_given_to_the_model_numbered(client, mock_api, librar
     assert "[1] CORP Program Guidelines.txt › Project approval criteria\n- the applicant must contribute" in passages["content"]
     assert "Mileage" not in passages["content"]  # too far in meaning to be used
     assert messages[-1] == {"role": "user", "content": "How much cash do we need to contribute to CORP?"}
-    assert library["calls"] == [("How much cash do we need to contribute to CORP?", "user-staff", [])]
+    assert library["calls"] == [("How much cash do we need to contribute to CORP?", "user-staff")]
 
 
 def test_cited_passages_come_back_as_sources(client, mock_api, library, tts):
@@ -187,15 +204,18 @@ def proposal_files(monkeypatch):
     return {"files": files, "calls": calls}
 
 
-def test_the_proposals_readable_files_are_searched_and_named(client, mock_api, library, proposal_files, tts):
-    library["value"] = [BUDGET, CASH_RULE]
+def test_the_proposals_readable_files_are_searched_and_named(
+    client, mock_api, library, file_search, proposal_files, tts
+):
+    file_search["value"] = [BUDGET]
+    library["value"] = [CASH_RULE]
     openai = _reply(mock_api, "Personnel is $85,000 [1].")
 
     body = _chat(client, message="What is our personnel budget?", proposal_id="riverbend").json()
 
     assert proposal_files["calls"] == [("user-staff", "riverbend")]
     # Only switched-on, indexed files are searched; the resume is not.
-    assert library["calls"][0][2] == ["doc-plan", "doc-budget"]
+    assert file_search["calls"] == [("What is our personnel budget?", "user-staff", ["doc-plan", "doc-budget"])]
 
     contents = [message["content"] for message in sent_json(openai)["messages"]]
     files_message = next(content for content in contents if "part of the user's proposal" in content)
@@ -205,7 +225,59 @@ def test_the_proposals_readable_files_are_searched_and_named(client, mock_api, l
     passages_message = next(content for content in contents if "cite it right after" in content)
     assert "[1] budget.xlsx › Budget [the user's attachment]\nPersonnel | 85000" in passages_message
 
+    assert "[2] CORP Program Guidelines.txt › Project approval criteria\n" in passages_message
     assert body["sources"][0]["origin"] == "attachment"
+
+
+SURVEY = SearchResult(
+    document_id="doc-plan",
+    title="Community plan.pdf",
+    filename="Community plan.pdf",
+    scope="personal",
+    page=None,
+    section="Community Needs",
+    text="Community plan › Community Needs\n\nThe survey reached 312 households.",
+    distance=0.77,
+)
+
+
+def test_the_proposals_files_are_used_at_a_distance_too_far_for_the_library(
+    client, mock_api, library, file_search, proposal_files, tts
+):
+    # A question about a file often shares none of its wording, so its best passage is
+    # further away than a library passage would be allowed to be.
+    file_search["value"] = [SURVEY]
+    library["value"] = [FAR_AWAY]
+    openai = _reply(mock_api, "It reached 312 households [1].")
+
+    body = _chat(client, message="How many households did the survey reach?", proposal_id="riverbend").json()
+
+    passages_message = next(m["content"] for m in sent_json(openai)["messages"] if "cite it right after" in m["content"])
+    assert "[1] Community plan.pdf › Community Needs [the user's background document]" in passages_message
+    assert "Mileage" not in passages_message
+    assert body["sources"][0]["origin"] == "background"
+
+
+def test_file_passages_unrelated_to_the_message_are_left_out(
+    client, mock_api, library, file_search, proposal_files, tts
+):
+    file_search["value"] = [SearchResult(**{**SURVEY.model_dump(), "distance": 0.9})]
+    library["value"] = []
+    openai = _reply(mock_api, "I can't tell you the weather.")
+
+    _chat(client, message="What's the weather today?", proposal_id="riverbend")
+
+    assert not any("cite it right after" in m["content"] for m in sent_json(openai)["messages"])
+
+
+def test_a_failed_file_search_still_uses_the_library(client, mock_api, library, file_search, proposal_files, tts):
+    file_search["value"] = RuntimeError("database unreachable")
+    _reply(mock_api, "You need at least 10% in cash [1].")
+
+    response = _chat(client, proposal_id="riverbend")
+
+    assert response.status_code == 200
+    assert response.json()["sources"][0]["origin"] == "library"
 
 
 def test_without_a_proposal_only_the_library_is_searched(client, mock_api, library, proposal_files, tts):
@@ -214,11 +286,11 @@ def test_without_a_proposal_only_the_library_is_searched(client, mock_api, libra
     _chat(client, message="Hi there")
 
     assert proposal_files["calls"] == []
-    assert library["calls"][0][2] == []
+    assert len(library["calls"]) == 1
     assert not any("part of the user's proposal" in m["content"] for m in sent_json(openai)["messages"])
 
 
-def test_a_failure_loading_files_still_searches_the_library(client, mock_api, library, monkeypatch, tts):
+def test_a_failure_loading_files_still_searches_the_library(client, mock_api, library, file_search, monkeypatch, tts):
     def broken(user_id, proposal_id):
         raise RuntimeError("database unreachable")
 
@@ -228,5 +300,5 @@ def test_a_failure_loading_files_still_searches_the_library(client, mock_api, li
     response = _chat(client, proposal_id="riverbend")
 
     assert response.status_code == 200
-    assert library["calls"][0][2] == []
+    assert file_search["calls"] == []
     assert response.json()["sources"][0]["origin"] == "library"

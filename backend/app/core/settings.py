@@ -39,6 +39,12 @@ ANALYSIS_MAX_CHARS = int(os.getenv("ANALYSIS_MAX_CHARS", "400000"))
 # (cosine distance, lower is closer) a passage must be to the message to be used.
 CHAT_RETRIEVAL_K = int(os.getenv("CHAT_RETRIEVAL_K", "4"))
 CHAT_RETRIEVAL_MAX_DISTANCE = float(os.getenv("CHAT_RETRIEVAL_MAX_DISTANCE", "0.5"))
+# The files a proposal lets the assistant read are searched on their own, with a looser
+# limit: the user chose them, and questions about them often use none of their wording
+# (asked about a survey, a plan's best passage measured 0.77). 0.85 still drops passages
+# unrelated to the message.
+CHAT_FILE_RETRIEVAL_K = int(os.getenv("CHAT_FILE_RETRIEVAL_K", "3"))
+CHAT_FILE_RETRIEVAL_MAX_DISTANCE = float(os.getenv("CHAT_FILE_RETRIEVAL_MAX_DISTANCE", "0.85"))
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")

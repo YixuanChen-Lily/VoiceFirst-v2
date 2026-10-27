@@ -6,11 +6,13 @@ The chat turn as a LangGraph graph.
 Jev scores how likely the turn needs real writing or reasoning. Plain code compares
 that score to a threshold and sends the turn to the fast chat model or the stronger one.
 Before the model answers, the closest passages are looked up and given to it: from the
-shared document library and from the proposal's own files the assistant may read. The
+shared document library and, searched on their own with a looser limit, from the
+proposal's own files the assistant may read. The
 reply cites the ones it uses as [1], [2], ... The model is also told the names of every
 file in the proposal, including attachments it may not read.
 """
 
+import asyncio
 import logging
 import re
 from typing import Dict, List, Literal, Optional
@@ -109,9 +111,16 @@ FILES_INSTRUCTIONS = (
 ORIGINS = {"background": "background document", "attachment": "attachment"}
 
 
-def _search_library(query: str, user_id: str, document_ids: List[str]) -> list:
+def _search_library(query: str, user_id: str) -> list:
     """Kept separate so tests can stand in for the knowledge base."""
-    return knowledge_service.search(query, user_id, document_ids=document_ids, k=settings.CHAT_RETRIEVAL_K)
+    return knowledge_service.search(query, user_id, k=settings.CHAT_RETRIEVAL_K)
+
+
+def _search_files(query: str, user_id: str, document_ids: List[str]) -> list:
+    """Kept separate so tests can stand in for the knowledge base."""
+    return knowledge_service.search(
+        query, user_id, document_ids=document_ids, k=settings.CHAT_FILE_RETRIEVAL_K, include_library=False
+    )
 
 
 def _proposal_files(user_id: str, proposal_id: str) -> list:
@@ -129,10 +138,20 @@ def _file_summary(item) -> Dict:
     }
 
 
+async def _close_passages(search, max_distance: float, *args) -> list:
+    """The results of one search that are close enough to use; none if the search fails."""
+    try:
+        results = await run_in_threadpool(search, *args)
+    except Exception as exc:
+        logger.warning("Passage search failed, answering without its passages: %s", exc)
+        return []
+    return [result for result in results if result.distance <= max_distance]
+
+
 async def retrieve(state: ChatState) -> dict:
     """
-    Look up passages close in meaning to the message, from the library and the files this
-    proposal lets the assistant read. Failures never block the reply.
+    Look up passages close in meaning to the message: from the files this proposal lets
+    the assistant read, then from the library. Failures never block the reply.
     """
     user_id, proposal_id = state.get("user_id"), state.get("proposal_id")
     if not user_id or not knowledge_service.is_configured():
@@ -146,14 +165,15 @@ async def retrieve(state: ChatState) -> dict:
             logger.warning("Could not load the proposal's files, using the library only: %s", exc)
     readable_ids = [item["document_id"] for item in files if item["readable"]]
 
-    try:
-        results = await run_in_threadpool(_search_library, state["message"], user_id, readable_ids)
-    except Exception as exc:
-        logger.warning("Library search failed, answering without passages: %s", exc)
-        return {"passages": [], "files": files}
+    message = state["message"]
+    searches = [_close_passages(_search_library, settings.CHAT_RETRIEVAL_MAX_DISTANCE, message, user_id)]
+    if readable_ids:
+        searches.insert(
+            0, _close_passages(_search_files, settings.CHAT_FILE_RETRIEVAL_MAX_DISTANCE, message, user_id, readable_ids)
+        )
+    close = [result for found in await asyncio.gather(*searches) for result in found]
 
     roles = {item["document_id"]: item["role"] for item in files}
-    close = [result for result in results if result.distance <= settings.CHAT_RETRIEVAL_MAX_DISTANCE]
     return {
         "files": files,
         "passages": [

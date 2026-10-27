@@ -14,17 +14,17 @@ def chunk_ids(document_id: str, count: int) -> List[str]:
     return [f"{document_id}:{index}" for index in range(count)]
 
 
-def scope_filter(owner_id: str, document_ids: Optional[List[str]]) -> dict:
+def scope_filter(owner_id: str, document_ids: Optional[List[str]], include_library: bool = True) -> dict:
     """
     Library documents are visible to every chat. A user's own files are visible
     only to them, and only the ones named in `document_ids`: the files the current
-    proposal lets the assistant read.
+    proposal lets the assistant read. Without the library, only those files.
     """
     library = {"scope": {"$eq": "library"}}
     if not document_ids:
         return library
     own_files = {"$and": [{"document_id": {"$in": list(document_ids)}}, {"owner_id": {"$eq": owner_id}}]}
-    return {"$or": [library, own_files]}
+    return {"$or": [library, own_files]} if include_library else own_files
 
 
 class VectorIndex:
@@ -44,9 +44,9 @@ class VectorIndex:
             self._store.delete(ids=chunk_ids(document_id, count))
 
     def search(
-        self, query: str, owner_id: str, document_ids: Optional[List[str]], k: int
+        self, query: str, owner_id: str, document_ids: Optional[List[str]], k: int, include_library: bool = True
     ) -> List[Tuple[Document, float]]:
         """Return the k closest chunks with their distance (lower is closer)."""
         return self._store.similarity_search_with_score(
-            query, k=k, filter=scope_filter(owner_id, document_ids)
+            query, k=k, filter=scope_filter(owner_id, document_ids, include_library)
         )
