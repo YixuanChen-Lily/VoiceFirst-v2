@@ -1,4 +1,5 @@
 import type { AppProps } from 'next/app';
+import Head from 'next/head';
 import { Atkinson_Hyperlegible } from 'next/font/google';
 
 import '../styles/globals.css';
@@ -17,6 +18,11 @@ const readable = Atkinson_Hyperlegible({
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <div className={readable.variable}>
+      <Head>
+        <title>Community Grant Assistant</title>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <meta name="theme-color" content="#2F6B4F" />
+      </Head>
       <AuthProvider>
         <AuthGate>
           <ProposalProvider>

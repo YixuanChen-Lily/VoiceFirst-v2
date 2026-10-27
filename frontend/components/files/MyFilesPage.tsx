@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, FileText, FolderOpen, Loader2, Trash2, Upload } from 'lucide-react';
+import { FileText, Loader2, Trash2, Upload } from 'lucide-react';
 
 import { deleteMyFile, listMyFiles, uploadMyFile, type MyFile } from '../../lib/api';
 import { formatDate, formatSize } from '../../lib/format';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
+import { SubPage } from '../layout/SubPage';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 
 interface MyFilesPageProps {
@@ -83,24 +84,13 @@ export function MyFilesPage({ onBack }: MyFilesPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-stone-50">
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <Button variant="ghost" onClick={onBack} className="gap-2 text-stone-600 hover:text-stone-900 mb-6">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Home
-        </Button>
-
-        <div className="flex items-center gap-3 mb-2">
-          <FolderOpen className="w-8 h-8 text-emerald-600" />
-          <h1 className="text-stone-900">My files</h1>
-        </div>
-        <p className="text-stone-600 mb-8 max-w-3xl">
-          Everything you have uploaded. Only you can see these files. Upload a file once and add it to any proposal
-          from the builder with “Add from My files”.
-        </p>
-
+    <SubPage
+      title="My files"
+      onBack={onBack}
+      description="Everything you have uploaded. Only you can see these files. Upload a file once and add it to any proposal from the builder with “Add from My files”."
+    >
         <div className="mb-6">
-          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2" disabled={isUploading} asChild>
+          <Button className="bg-forest hover:bg-forest-dark text-white gap-2" disabled={isUploading} asChild>
             <label className="cursor-pointer">
               {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               {isUploading ? 'Uploading…' : 'Upload files'}
@@ -116,7 +106,7 @@ export function MyFilesPage({ onBack }: MyFilesPageProps) {
         </div>
 
         {notice && (
-          <p role="status" className="mb-4 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
+          <p role="status" className="mb-4 text-sm text-forest-dark bg-forest-tint border border-forest/20 rounded-lg px-4 py-2">
             {notice}
           </p>
         )}
@@ -126,13 +116,13 @@ export function MyFilesPage({ onBack }: MyFilesPageProps) {
           </p>
         )}
 
-        <Card className="border border-stone-200">
+        <Card className="border border-line">
           <CardContent className="p-0">
             {isLoading ? (
-              <p className="p-8 text-center text-stone-500">Loading…</p>
+              <p className="p-8 text-center text-ink-muted">Loading…</p>
             ) : files.length === 0 ? (
-              <div className="p-10 text-center text-stone-500">
-                <FileText className="w-8 h-8 mx-auto mb-3 text-stone-400" />
+              <div className="p-10 text-center text-ink-muted">
+                <FileText className="w-8 h-8 mx-auto mb-3 text-ink-muted" />
                 <p>You haven't uploaded any files yet.</p>
               </div>
             ) : (
@@ -149,8 +139,8 @@ export function MyFilesPage({ onBack }: MyFilesPageProps) {
                   {files.map((file) => (
                     <TableRow key={file.id}>
                       <TableCell>
-                        <div className="text-stone-900">{file.filename}</div>
-                        <div className="text-xs text-stone-500">{formatSize(file.size_bytes)}</div>
+                        <div className="text-ink">{file.filename}</div>
+                        <div className="text-xs text-ink-muted">{formatSize(file.size_bytes)}</div>
                       </TableCell>
                       <TableCell>{usedInText(file.used_in)}</TableCell>
                       <TableCell>{formatDate(file.created_at)}</TableCell>
@@ -160,7 +150,7 @@ export function MyFilesPage({ onBack }: MyFilesPageProps) {
                           size="sm"
                           disabled={busyId === file.id}
                           onClick={() => handleDelete(file)}
-                          className="gap-1 text-red-600 hover:text-red-700"
+                          className="gap-1 text-red-700 hover:text-red-700"
                         >
                           <Trash2 className="w-4 h-4" />
                           Delete
@@ -173,7 +163,6 @@ export function MyFilesPage({ onBack }: MyFilesPageProps) {
             )}
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </SubPage>
   );
 }
