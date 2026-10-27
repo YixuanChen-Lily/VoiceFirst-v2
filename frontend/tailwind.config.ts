@@ -12,6 +12,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Forest and birch: the app's own palette (see the home page).
+        forest: { DEFAULT: "#2F6B4F", dark: "#234F3B", tint: "#E4EDE7" },
+        ochre: { DEFAULT: "#C98A2B", tint: "#F6EAD3", text: "#7A4F0F" },
+        birch: "#FAF7F2",
+        ink: { DEFAULT: "#2B2A28", muted: "#5F5A54" },
+        line: "#E6E0D6",
         background: "var(--background)",
         foreground: "var(--foreground)",
         card: {
@@ -62,6 +68,9 @@ const config: Config = {
           border: withOpacityValue("--sidebar-border"),
           ring: withOpacityValue("--sidebar-ring")
         }
+      },
+      fontFamily: {
+        readable: ["var(--font-readable)", "system-ui", "sans-serif"]
       },
       borderRadius: {
         lg: "var(--radius)",

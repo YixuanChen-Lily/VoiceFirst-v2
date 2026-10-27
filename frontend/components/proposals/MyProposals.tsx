@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FileText, Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 
 import { deleteProposal, getProposal, listProposals, type SavedProposal, type SavedProposalSummary } from '../../lib/api';
-import { Button } from '../ui/button';
-import { Card, CardContent } from '../ui/card';
 
 interface MyProposalsProps {
   onOpen: (proposal: SavedProposal) => void;
@@ -65,49 +63,46 @@ export function MyProposals({ onOpen }: MyProposalsProps) {
   if (proposals.length === 0 && !error) return null;
 
   return (
-    <Card className="border border-stone-200 mb-12">
-      <CardContent className="p-6">
-        <h2 className="text-stone-900 mb-4">My proposals</h2>
-        {error && (
-          <p role="alert" className="mb-3 text-sm text-red-600">
-            {error}
-          </p>
-        )}
-        <ul className="divide-y divide-stone-100">
-          {proposals.map((proposal) => (
-            <li key={proposal.id} className="flex items-center justify-between gap-4 py-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <FileText className="w-5 h-5 text-emerald-600 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-stone-900 truncate">{proposal.title}</p>
-                  <p className="text-xs text-stone-500">Last edited {formatEdited(proposal.updated_at)}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Button
-                  size="sm"
-                  disabled={busyId === proposal.id}
-                  onClick={() => handleOpen(proposal)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                >
-                  {busyId === proposal.id && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Open
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={busyId === proposal.id}
-                  onClick={() => handleDelete(proposal)}
-                  className="text-red-600 hover:text-red-700"
-                  aria-label={`Delete ${proposal.title}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
+    <section aria-labelledby="my-proposals-heading">
+      <h2 id="my-proposals-heading" className="text-2xl font-bold mb-4">
+        Continue where you left off
+      </h2>
+      {error && (
+        <p role="alert" className="mb-3 text-base text-red-700">
+          {error}
+        </p>
+      )}
+      <ul className="bg-white border border-line rounded-2xl divide-y divide-line">
+        {proposals.map((proposal) => (
+          <li key={proposal.id} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-5">
+            <div className="min-w-0">
+              <p className="font-bold truncate">{proposal.title}</p>
+              <p className="text-base text-ink-muted">Edited {formatEdited(proposal.updated_at)}</p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                disabled={busyId === proposal.id}
+                onClick={() => handleOpen(proposal)}
+                className="inline-flex items-center gap-2 min-h-11 px-4 rounded-lg bg-forest-tint text-forest-dark font-bold hover:bg-forest hover:text-white transition-colors disabled:opacity-60"
+              >
+                {busyId === proposal.id && <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />}
+                Open
+              </button>
+              <button
+                type="button"
+                disabled={busyId === proposal.id}
+                onClick={() => handleDelete(proposal)}
+                aria-label={`Delete ${proposal.title}`}
+                title="Delete"
+                className="inline-flex items-center justify-center w-11 h-11 rounded-lg text-ink-muted hover:text-red-700 hover:bg-red-50 transition-colors disabled:opacity-60"
+              >
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
