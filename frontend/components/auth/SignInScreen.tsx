@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Mail, Sparkles } from 'lucide-react';
+import { Mail } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
+import { AppMark } from '../brand/AppMark';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -31,25 +32,23 @@ export function SignInScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-stone-50 flex items-center justify-center px-6">
+    <div className="min-h-screen bg-birch text-ink font-readable flex items-center justify-center px-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg">
-            <Sparkles className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-stone-900 mb-2">Community Grant Assistant</h1>
-          <p className="text-stone-600">Sign in to continue.</p>
+          <AppMark size={64} className="mx-auto mb-5" />
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Community Grant Assistant</h1>
+          <p className="text-lg text-ink-muted">Sign in to continue.</p>
         </div>
 
-        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm p-6">
+        <div className="bg-white border border-line rounded-2xl p-6 sm:p-8">
           {sentTo ? (
             <div className="text-center">
-              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
-                <Mail className="w-6 h-6 text-emerald-700" />
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-forest-tint flex items-center justify-center">
+                <Mail className="w-6 h-6 text-forest-dark" aria-hidden="true" />
               </div>
-              <p className="text-stone-900 mb-2">Check your email</p>
-              <p className="text-stone-600 text-sm mb-5">
-                We sent a sign-in link to <span className="text-stone-900">{sentTo}</span>. Open it on this
+              <p className="text-xl font-bold mb-2">Check your email</p>
+              <p className="text-ink-muted mb-5">
+                We sent a sign-in link to <span className="text-ink">{sentTo}</span>. Open it on this
                 device to sign in.
               </p>
               <Button variant="outline" onClick={() => setSentTo(null)}>
@@ -71,18 +70,18 @@ export function SignInScreen() {
                 />
               </div>
               {error && (
-                <p role="alert" className="text-sm text-red-600">
+                <p role="alert" className="text-sm text-red-700">
                   {error}
                 </p>
               )}
               <Button
                 type="submit"
                 disabled={isSending || !email.trim()}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="w-full min-h-12 text-base font-bold bg-forest hover:bg-forest-dark text-white"
               >
                 {isSending ? 'Sending…' : 'Email me a sign-in link'}
               </Button>
-              <p className="text-xs text-stone-500 text-center">
+              <p className="text-sm text-ink-muted text-center">
                 No password needed. Access is by invitation.
               </p>
             </form>

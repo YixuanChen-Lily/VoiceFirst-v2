@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, FileText, Library, Loader2, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { FileText, Loader2, RefreshCw, Trash2, Upload } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -15,6 +15,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { SubPage } from '../layout/SubPage';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 
 interface LibraryPageProps {
@@ -35,10 +36,10 @@ const TYPE_LABELS: Record<string, string> = Object.fromEntries(
 
 function StatusBadge({ document }: { document: KnowledgeDocument }) {
   if (document.status === 'ready') {
-    return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Ready</Badge>;
+    return <Badge className="bg-forest-tint text-forest-dark border-forest/20">Ready</Badge>;
   }
   if (document.status === 'processing') {
-    return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Processing</Badge>;
+    return <Badge className="bg-ochre-tint text-ochre-text border-ochre/30">Processing</Badge>;
   }
   return (
     <Badge className="bg-red-100 text-red-800 border-red-200" title={document.error ?? undefined}>
@@ -130,26 +131,20 @@ export function LibraryPage({ onBack }: LibraryPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-stone-50">
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <Button variant="ghost" onClick={onBack} className="gap-2 text-stone-600 hover:text-stone-900 mb-6">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Home
-        </Button>
-
-        <div className="flex items-center gap-3 mb-2">
-          <Library className="w-8 h-8 text-emerald-600" />
-          <h1 className="text-stone-900">Document library</h1>
-        </div>
-        <p className="text-stone-600 mb-8 max-w-3xl">
+    <SubPage
+      title="Document library"
+      onBack={onBack}
+      description={
+        <>
           Guidelines, policies and funder documents that the assistant can draw on for every proposal.
           {isAdmin ? '' : ' Library administrators add and remove documents.'}
-        </p>
-
+        </>
+      }
+    >
         {isAdmin && (
-          <Card className="border border-stone-200 mb-8">
+          <Card className="border border-line mb-8">
             <CardContent className="p-6">
-              <h2 className="text-stone-900 mb-4">Add a document</h2>
+              <h2 className="text-ink mb-4">Add a document</h2>
               <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2 space-y-2">
                   <Label htmlFor="library-file">File (PDF, Word .docx, Excel .xlsx or text, up to 20 MB)</Label>
@@ -186,7 +181,7 @@ export function LibraryPage({ onBack }: LibraryPageProps) {
                     id="library-type"
                     value={docType}
                     onChange={(event) => setDocType(event.target.value)}
-                    className="w-full h-9 rounded-md border border-stone-200 bg-white px-3 text-sm text-stone-900"
+                    className="w-full h-9 rounded-md border border-line bg-white px-3 text-sm text-ink"
                   >
                     {DOCUMENT_TYPES.map(({ value, label }) => (
                       <option key={value} value={value}>
@@ -199,14 +194,14 @@ export function LibraryPage({ onBack }: LibraryPageProps) {
                   <Button
                     type="submit"
                     disabled={!file || isUploading}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                    className="w-full bg-forest hover:bg-forest-dark text-white gap-2"
                   >
                     {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                     {isUploading ? 'Uploading and indexing…' : 'Add to library'}
                   </Button>
                 </div>
                 {uploadError && (
-                  <p role="alert" className="md:col-span-2 text-sm text-red-600">
+                  <p role="alert" className="md:col-span-2 text-sm text-red-700">
                     {uploadError}
                   </p>
                 )}
@@ -216,7 +211,7 @@ export function LibraryPage({ onBack }: LibraryPageProps) {
         )}
 
         {notice && (
-          <p role="status" className="mb-4 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
+          <p role="status" className="mb-4 text-sm text-forest-dark bg-forest-tint border border-forest/20 rounded-lg px-4 py-2">
             {notice}
           </p>
         )}
@@ -226,13 +221,13 @@ export function LibraryPage({ onBack }: LibraryPageProps) {
           </p>
         )}
 
-        <Card className="border border-stone-200">
+        <Card className="border border-line">
           <CardContent className="p-0">
             {isLoading ? (
-              <p className="p-8 text-center text-stone-500">Loading…</p>
+              <p className="p-8 text-center text-ink-muted">Loading…</p>
             ) : documents.length === 0 ? (
-              <div className="p-10 text-center text-stone-500">
-                <FileText className="w-8 h-8 mx-auto mb-3 text-stone-400" />
+              <div className="p-10 text-center text-ink-muted">
+                <FileText className="w-8 h-8 mx-auto mb-3 text-ink-muted" />
                 <p>The library is empty.</p>
                 {isAdmin && <p className="text-sm mt-1">Add a guideline or policy above to get started.</p>}
               </div>
@@ -253,8 +248,8 @@ export function LibraryPage({ onBack }: LibraryPageProps) {
                   {documents.map((document) => (
                     <TableRow key={document.id}>
                       <TableCell>
-                        <div className="text-stone-900">{document.title}</div>
-                        <div className="text-xs text-stone-500">
+                        <div className="text-ink">{document.title}</div>
+                        <div className="text-xs text-ink-muted">
                           {document.filename} · {formatSize(document.size_bytes)}
                         </div>
                       </TableCell>
@@ -273,7 +268,7 @@ export function LibraryPage({ onBack }: LibraryPageProps) {
                             disabled={busyId === document.id}
                             onClick={() => handleReindex(document)}
                             title="Process this document again"
-                            className="gap-1 text-stone-600"
+                            className="gap-1 text-ink-muted"
                           >
                             <RefreshCw className={`w-4 h-4 ${busyId === document.id ? 'animate-spin' : ''}`} />
                             Re-process
@@ -283,7 +278,7 @@ export function LibraryPage({ onBack }: LibraryPageProps) {
                             size="sm"
                             disabled={busyId === document.id}
                             onClick={() => handleDelete(document)}
-                            className="gap-1 text-red-600 hover:text-red-700"
+                            className="gap-1 text-red-700 hover:text-red-700"
                           >
                             <Trash2 className="w-4 h-4" />
                             Remove
@@ -297,7 +292,6 @@ export function LibraryPage({ onBack }: LibraryPageProps) {
             )}
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </SubPage>
   );
 }
