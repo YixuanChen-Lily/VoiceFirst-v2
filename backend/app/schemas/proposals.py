@@ -39,6 +39,89 @@ class DraftAnalysisResponse(BaseModel):
     characters_total: int
 
 
+class DraftMilestone(BaseModel):
+    name: str = Field(..., description="What will be done")
+    date: str = Field("", description="When, in the draft's own words (a date, month or quarter)")
+
+
+class DraftBudgetLine(BaseModel):
+    category: str = Field(..., description="Cost category, e.g. Staff, Equipment, Construction")
+    description: str = Field("", description="What the money is for")
+    amount: str = Field("", description="Amount as written in the draft, digits only if possible")
+
+
+class DraftIndicator(BaseModel):
+    indicator: str = Field(..., description="What is measured, e.g. Households served")
+    baseline: str = Field("", description="Where things are now")
+    target: str = Field("", description="Where the project aims to get")
+    year: str = Field("", description="By when")
+
+
+class DraftRisk(BaseModel):
+    risk: str = Field(..., description="What could go wrong")
+    likelihood: Literal["", "low", "medium", "high"] = Field("", description="How likely, if the draft says")
+    mitigation: str = Field("", description="What the applicant will do about it")
+
+
+class DraftFields(BaseModel):
+    """The proposal form's fields, filled from an existing draft. Anything the draft doesn't cover stays empty."""
+
+    projectTitle: str = Field("", description="Name of the project")
+    organizationName: str = Field("", description="Organization applying")
+    submissionDate: str = Field("", description="Submission date, as YYYY-MM-DD if the draft gives one")
+    contactName: str = ""
+    contactPhone: str = ""
+    contactEmail: str = ""
+    contactAddress: str = Field("", description="Mailing address")
+    fundedBy: str = Field("", description="Funder or funding program applied to")
+    executiveSummary: str = Field("", description="The executive summary or overview")
+    communityName: str = ""
+    population: str = ""
+    communityBackground: str = Field("", description="About the community: where, who lives there, daily life")
+    economicBaseline: str = Field("", description="Local economy")
+    culturalContext: str = Field("", description="Culture, language, land and environment")
+    needsChallenges: str = Field("", description="Challenges the community faces")
+    problemDescription: str = Field("", description="The problem or opportunity the project addresses")
+    supportingEvidence: str = Field("", description="Statistics, survey results or testimony backing the need")
+    objective1: str = Field("", description="First goal or objective")
+    objective2: str = Field("", description="Second goal or objective")
+    objective3: str = Field("", description="Third goal or objective")
+    year1Activities: str = ""
+    year2Activities: str = ""
+    year3Activities: str = ""
+    governanceStructure: str = Field("", description="Who oversees the project and how decisions are made")
+    implementationResponsibilities: str = Field("", description="Key people or roles and what each does")
+    implementationPartnerships: str = Field("", description="Partner organizations")
+    implementationRiskOverview: str = Field("", description="A brief note on main risks, if given with the plan")
+    milestones: List[DraftMilestone] = Field(default_factory=list, description="Up to 6 milestones")
+    totalBudget: str = Field("", description="Total project cost")
+    requestedAmount: str = Field("", description="Amount requested from this funder")
+    communityContribution: str = ""
+    personnelBudget: str = Field("", description="Staff costs")
+    equipmentBudget: str = ""
+    trainingBudget: str = ""
+    marketingBudget: str = Field("", description="Promotion or marketing costs")
+    otherBudget: str = Field("", description="Funding from other sources")
+    sustainabilityPlan: str = Field("", description="How the project continues after the grant")
+    budgetLines: List[DraftBudgetLine] = Field(default_factory=list, description="Itemized costs, if listed")
+    expectedOutcomes: str = Field("", description="What will change")
+    successIndicators: str = Field("", description="How they'll know it worked")
+    dataCollectionPlan: str = ""
+    evaluationPlan: str = ""
+    indicators: List[DraftIndicator] = Field(default_factory=list, description="Measurable targets, if listed")
+    communityAlignment: str = Field("", description="How the project fits the community's plans")
+    funderAlignment: str = Field("", description="How the project fits the funder's priorities")
+    longTermSustainability: str = Field("", description="Lasting benefits after funding ends")
+    risksMitigation: str = Field("", description="Summary of risks and how they'll be handled")
+    riskRows: List[DraftRisk] = Field(default_factory=list, description="Individual risks, if listed")
+
+
+class DraftFieldsResponse(BaseModel):
+    """Only the fields the draft covers; the website leaves the rest as they are."""
+
+    fields: Dict[str, Any]
+
+
 class ProposalPayload(BaseModel):
     project_title: str
     organization_name: str

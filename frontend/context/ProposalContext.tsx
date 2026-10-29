@@ -100,6 +100,8 @@ interface ProposalContextType {
   data: ProposalData;
   updateField: (field: keyof ProposalData, value: any) => void;
   updateMultipleFields: (fields: Partial<ProposalData>) => void;
+  /** Fill in only the fields that are still empty. Returns how many were filled. */
+  fillEmptyFields: (fields: Partial<ProposalData>) => number;
   /** The saved proposal being edited; null until the first save of a new proposal. */
   proposalId: string | null;
   /** Save the proposal if it has never been saved, and return its id. Files need one. */
@@ -185,6 +187,17 @@ const initialData: ProposalData = {
   attachmentChecklist: {},
 };
 
+/** Whether a field has something in it: text that isn't blank, or a table row with any text. */
+function isFilled(value: unknown): boolean {
+  if (typeof value === 'string') return value.trim() !== '';
+  if (Array.isArray(value)) {
+    return value.some((row) =>
+      typeof row === 'object' && row !== null && Object.values(row).some((cell) => typeof cell === 'string' && cell.trim() !== ''),
+    );
+  }
+  return false;
+}
+
 /** The form as it is saved. Uploaded files are saved separately, linked to the proposal. */
 function toSavedData(data: ProposalData): Record<string, unknown> {
   return { ...data };
@@ -228,6 +241,18 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
 
   const updateMultipleFields = (fields: Partial<ProposalData>) => {
     change(prev => ({ ...prev, ...fields }));
+  };
+
+  const fillEmptyFields = (fields: Partial<ProposalData>): number => {
+    const pick = (current: ProposalData) =>
+      Object.fromEntries(
+        Object.entries(fields).filter(
+          ([key, value]) => key in initialData && isFilled(value) && !isFilled(current[key as keyof ProposalData]),
+        ),
+      ) as Partial<ProposalData>;
+    const count = Object.keys(pick(dataRef.current)).length;
+    if (count > 0) change((prev) => ({ ...prev, ...pick(prev) }));
+    return count;
   };
 
   const save = useCallback(async () => {
@@ -337,6 +362,7 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
       data,
       updateField,
       updateMultipleFields,
+      fillEmptyFields,
       proposalId,
       ensureSaved,
       saveStatus,
