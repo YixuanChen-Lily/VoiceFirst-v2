@@ -60,12 +60,12 @@ export function AttachmentsSection() {
           >
             <div className="text-center mb-4">
               <Upload className="w-12 h-12 mx-auto mb-3 text-[#8C867E]" />
-              <h3 className="text-ink mb-2">Drag & Drop Files Here</h3>
+              <h3 className="text-ink mb-2">Drag files here</h3>
               <p className="text-base text-ink-muted mb-4">or upload each recommended document below</p>
             </div>
 
             <div className="space-y-3">
-              <h4 className="text-base text-ink-muted mb-3">Recommended Documents Checklist:</h4>
+              <h4 className="text-base text-ink-muted mb-3">Documents funders often ask for</h4>
 
               <div className="space-y-3">
                 {RECOMMENDED.map(({ key, label }) => {
@@ -153,7 +153,7 @@ export function AttachmentsSection() {
           )}
 
           <div className="p-4 bg-ochre-tint border-l-4 border-ochre rounded">
-            <h4 className="text-ochre-text mb-2">Tips for Strong Supporting Documents</h4>
+            <h4 className="text-ochre-text mb-2">Tips</h4>
             <ul className="text-base text-ink space-y-1 list-disc list-inside">
               <li>Ensure all documents are clearly labeled and up to date</li>
               <li>Letters of support should be on official letterhead</li>

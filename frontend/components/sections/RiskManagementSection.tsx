@@ -40,9 +40,9 @@ export function RiskManagementSection() {
 
         <div className="space-y-6">
           <div>
-            <Label className="mb-3 block">Risk Assessment *</Label>
+            <Label className="mb-3 block">Risks and how you'll handle them</Label>
             <p className="text-base text-ink-muted mb-4">
-              Identify potential risks and your mitigation strategies
+              One row per risk: what could happen, how likely it is, and what you'll do.
             </p>
             
             <div className="border border-line rounded-lg overflow-x-auto">
@@ -51,7 +51,7 @@ export function RiskManagementSection() {
                   <TableRow className="bg-ochre-tint">
                     <TableHead className="min-w-[200px]">Risk</TableHead>
                     <TableHead className="min-w-[120px]">Likelihood</TableHead>
-                    <TableHead className="min-w-[250px]">Mitigation Measure</TableHead>
+                    <TableHead className="min-w-[250px]">What you'll do</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -131,7 +131,7 @@ export function RiskManagementSection() {
           </div>
 
           <div className="p-4 bg-ochre-tint border border-[#EBD3A8] rounded">
-            <h3 className="text-ochre-text mb-2">Common Risk Categories</h3>
+            <h3 className="text-ochre-text mb-2">Kinds of risk to think about</h3>
             <ul className="text-base text-ink space-y-1 list-disc list-inside grid grid-cols-1 md:grid-cols-2 gap-2">
               <li>Financial (budget overruns, funding delays)</li>
               <li>Operational (staffing, supply chain)</li>
@@ -145,9 +145,9 @@ export function RiskManagementSection() {
           </div>
 
           <div>
-            <Label htmlFor="risk-summary">Overall Risk Mitigation Strategy</Label>
+            <Label htmlFor="risk-summary">Summary <span className="font-normal text-ink-muted">(optional)</span></Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              Provide a narrative summary of your major risks and how you will address them.
+              A short paragraph on your biggest risks and how you'll handle them.
             </p>
             <Textarea
               id="risk-summary"

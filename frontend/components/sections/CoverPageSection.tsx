@@ -14,10 +14,10 @@ export function CoverPageSection() {
 
         <div className="space-y-6">
           <div>
-            <Label htmlFor="project-title">Project Title *</Label>
+            <Label htmlFor="project-title">Project name</Label>
             <Input
               id="project-title"
-              placeholder="Enter your project title"
+              placeholder="For example: Willow Bend Community Greenhouse"
               className="mt-2"
               value={data.projectTitle}
               onChange={(e) => updateField('projectTitle', e.target.value)}
@@ -29,7 +29,7 @@ export function CoverPageSection() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="org-name">Organization Name *</Label>
+              <Label htmlFor="org-name">Organization applying</Label>
               <Input
                 id="org-name"
                 placeholder="Your organization or community name"
@@ -40,7 +40,7 @@ export function CoverPageSection() {
             </div>
 
             <div>
-              <Label htmlFor="submission-date">Date of Submission *</Label>
+              <Label htmlFor="submission-date">Date you'll submit</Label>
               <Input
                 id="submission-date"
                 type="date"
@@ -52,10 +52,10 @@ export function CoverPageSection() {
           </div>
 
           <div className="p-4 bg-ochre-tint border-l-4 border-ochre rounded">
-            <h3 className="text-ochre-text mb-3">Contact Information</h3>
+            <h3 className="text-ochre-text mb-3">Contact person</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="contact-name">Contact Name *</Label>
+                <Label htmlFor="contact-name">Name</Label>
                 <Input
                   id="contact-name"
                   placeholder="Full name"
@@ -65,7 +65,7 @@ export function CoverPageSection() {
                 />
               </div>
               <div>
-                <Label htmlFor="contact-phone">Phone *</Label>
+                <Label htmlFor="contact-phone">Phone</Label>
                 <Input
                   id="contact-phone"
                   type="tel"
@@ -76,7 +76,7 @@ export function CoverPageSection() {
                 />
               </div>
               <div>
-                <Label htmlFor="contact-email">Email *</Label>
+                <Label htmlFor="contact-email">Email</Label>
                 <Input
                   id="contact-email"
                   type="email"
@@ -87,7 +87,7 @@ export function CoverPageSection() {
                 />
               </div>
               <div>
-                <Label htmlFor="contact-address">Address</Label>
+                <Label htmlFor="contact-address">Mailing address <span className="font-normal text-ink-muted">(optional)</span></Label>
                 <Input
                   id="contact-address"
                   placeholder="Community address"
@@ -100,10 +100,10 @@ export function CoverPageSection() {
           </div>
 
           <div>
-            <Label htmlFor="funded-by">Funded By / Requested From *</Label>
+            <Label htmlFor="funded-by">Funder or program</Label>
             <Input
               id="funded-by"
-              placeholder="Name of funding organization or program"
+              placeholder="For example: Northern Food Security Fund"
               className="mt-2"
               value={data.fundedBy}
               onChange={(e) => updateField('fundedBy', e.target.value)}

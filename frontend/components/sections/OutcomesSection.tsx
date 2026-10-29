@@ -41,9 +41,9 @@ export function OutcomesSection() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="expected-outcomes">Expected Outcomes *</Label>
+              <Label htmlFor="expected-outcomes">What will change</Label>
               <p className="text-base text-ink-muted mt-1 mb-2">
-                Summarize the major results you anticipate achieving through this project.
+                The main results you expect for the community.
               </p>
               <Textarea
                 id="expected-outcomes"
@@ -54,9 +54,9 @@ export function OutcomesSection() {
               />
             </div>
             <div>
-              <Label htmlFor="success-indicators">Success Indicators *</Label>
+              <Label htmlFor="success-indicators">How you'll know it worked</Label>
               <p className="text-base text-ink-muted mt-1 mb-2">
-                List the high-level indicators you will use to demonstrate success.
+                The signs of success you'll watch for, like jobs created or people trained.
               </p>
               <Textarea
                 id="success-indicators"
@@ -70,21 +70,21 @@ export function OutcomesSection() {
 
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <Label>Performance Indicators *</Label>
+              <Label>Targets</Label>
               <span className="text-[15px] text-ink-muted"></span>
             </div>
             <p className="text-base text-ink-muted mb-4">
-              Define measurable indicators to track your project's success
+              For each sign of success: where you are now, and where you aim to be.
             </p>
             
             <div className="border border-line rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-forest-tint">
-                    <TableHead>Indicator</TableHead>
-                    <TableHead>Baseline</TableHead>
+                    <TableHead>Sign of success</TableHead>
+                    <TableHead>Now</TableHead>
                     <TableHead>Target</TableHead>
-                    <TableHead>Year</TableHead>
+                    <TableHead>By</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -144,7 +144,7 @@ export function OutcomesSection() {
 
           <div className="p-4 bg-ochre-tint border-l-4 border-ochre rounded">
             <p className="text-base text-ochre-text mb-2">
-              <span>Example Indicators:</span>
+              <span>Examples</span>
             </p>
             <ul className="text-base text-ink space-y-1 list-disc list-inside">
               <li>Number of full-time jobs created</li>
@@ -157,15 +157,15 @@ export function OutcomesSection() {
 
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Label htmlFor="data-collection">Data Collection Plan</Label>
+              <Label htmlFor="data-collection">How you'll gather information <span className="font-normal text-ink-muted">(optional)</span></Label>
               <span className="text-[15px] text-ink-muted"></span>
             </div>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              How will you collect data to measure these indicators?
+              For example: sign-in sheets, sales records, or a yearly survey.
             </p>
             <Textarea
               id="data-collection"
-              placeholder="Describe your data collection methods (e.g., monthly sales reports, quarterly employment surveys, visitor logs...)"
+              placeholder="How you'll collect information…"
               className="mt-2 min-h-[100px]"
               value={data.dataCollectionPlan}
               onChange={(e) => updateField('dataCollectionPlan', e.target.value)}
@@ -173,13 +173,13 @@ export function OutcomesSection() {
           </div>
 
           <div>
-            <Label htmlFor="evaluation-plan">Evaluation Plan</Label>
+            <Label htmlFor="evaluation-plan">How you'll review progress <span className="font-normal text-ink-muted">(optional)</span></Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              When and how will you evaluate the project's success?
+              When you'll check how it's going, and who will do it.
             </p>
             <Textarea
               id="evaluation-plan"
-              placeholder="Describe evaluation timeline and methods (e.g., annual reviews, mid-project assessment, final evaluation report...)"
+              placeholder="Your plan for reviewing progress…"
               className="mt-2 min-h-[100px]"
               value={data.evaluationPlan}
               onChange={(e) => updateField('evaluationPlan', e.target.value)}

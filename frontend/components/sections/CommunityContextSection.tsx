@@ -26,7 +26,7 @@ export function CommunityContextSection() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="community-name">Community Name *</Label>
+              <Label htmlFor="community-name">Community name</Label>
               <Input
                 id="community-name"
                 placeholder="e.g., Inuvik"
@@ -36,7 +36,7 @@ export function CommunityContextSection() {
               />
             </div>
             <div>
-              <Label htmlFor="community-population">Population</Label>
+              <Label htmlFor="community-population">Population <span className="font-normal text-ink-muted">(optional)</span></Label>
               <Input
                 id="community-population"
                 placeholder="e.g., 3,243"
@@ -49,7 +49,7 @@ export function CommunityContextSection() {
 
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Label htmlFor="community-overview">Community Overview *</Label>
+              <Label htmlFor="community-overview">About your community</Label>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>
@@ -63,7 +63,7 @@ export function CommunityContextSection() {
             </div>
             <Textarea
               id="community-overview"
-              placeholder="Describe your community: population, location, key facts..."
+              placeholder="Where it is, who lives there, and what daily life is like…"
               className="mt-2 min-h-[120px]"
               value={data.communityBackground}
               onChange={(e) => updateField('communityBackground', e.target.value)}
@@ -71,10 +71,10 @@ export function CommunityContextSection() {
           </div>
 
           <div>
-            <Label htmlFor="economic-baseline">Economic Baseline</Label>
+            <Label htmlFor="economic-baseline">Local economy <span className="font-normal text-ink-muted">(optional)</span></Label>
             <Textarea
               id="economic-baseline"
-              placeholder="Current economic situation, employment rates, major industries..."
+              placeholder="Main jobs, income sources, and costs that affect this project…"
               className="mt-2 min-h-[100px]"
               value={data.economicBaseline}
               onChange={(e) => updateField('economicBaseline', e.target.value)}
@@ -82,10 +82,10 @@ export function CommunityContextSection() {
           </div>
 
           <div>
-            <Label htmlFor="cultural-context">Cultural/Environmental Context</Label>
+            <Label htmlFor="cultural-context">Culture and land <span className="font-normal text-ink-muted">(optional)</span></Label>
             <Textarea
               id="cultural-context"
-              placeholder="Cultural heritage, traditions, environmental features relevant to this project..."
+              placeholder="Traditions, language, land and environment that matter to this project…"
               className="mt-2 min-h-[100px]"
               value={data.culturalContext}
               onChange={(e) => updateField('culturalContext', e.target.value)}
@@ -93,10 +93,10 @@ export function CommunityContextSection() {
           </div>
 
           <div>
-            <Label htmlFor="needs-challenges">Needs & Challenges</Label>
+            <Label htmlFor="needs-challenges">Challenges the community faces <span className="font-normal text-ink-muted">(optional)</span></Label>
             <Textarea
               id="needs-challenges"
-              placeholder="Key challenges your community faces that this project addresses..."
+              placeholder="The challenges this project helps with…"
               className="mt-2 min-h-[100px]"
               value={data.needsChallenges}
               onChange={(e) => updateField('needsChallenges', e.target.value)}
@@ -104,9 +104,9 @@ export function CommunityContextSection() {
           </div>
 
           <div className="p-4 bg-birch border border-dashed border-line rounded">
-            <Label>Strategic Plan Reference (Optional)</Label>
+            <Label>Community plan <span className="font-normal text-ink-muted">(optional)</span></Label>
             <p className="text-base text-ink-muted mt-1 mb-3">
-              Upload your community strategic plan if available
+              If you have a community plan, add it here.
             </p>
             <div className="flex items-center gap-4">
               <Button variant="outline" className="gap-2" asChild>
