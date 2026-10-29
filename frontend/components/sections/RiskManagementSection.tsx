@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
+import { STEP_NAMES } from '../../lib/proposalSteps';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
-import { AlertTriangle, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
@@ -35,26 +35,20 @@ export function RiskManagementSection() {
   };
 
   return (
-    <Card className="border-2 border-sky-200 shadow-lg">
-      <CardContent className="p-8">
-        <SectionHeader
-          number={10}
-          title="Risk Management & Mitigation"
-          icon={AlertTriangle}
-          description="Identify potential risks and how you'll address them"
-        />
+    <div>
+        <SectionHeader title={STEP_NAMES[10]} description="What could go wrong, and how you'll handle it." />
 
         <div className="space-y-6">
           <div>
             <Label className="mb-3 block">Risk Assessment *</Label>
-            <p className="text-sm text-stone-600 mb-4">
+            <p className="text-base text-ink-muted mb-4">
               Identify potential risks and your mitigation strategies
             </p>
             
-            <div className="border-2 border-stone-200 rounded-lg overflow-x-auto">
+            <div className="border border-line rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-amber-50">
+                  <TableRow className="bg-ochre-tint">
                     <TableHead className="min-w-[200px]">Risk</TableHead>
                     <TableHead className="min-w-[120px]">Likelihood</TableHead>
                     <TableHead className="min-w-[250px]">Mitigation Measure</TableHead>
@@ -96,13 +90,13 @@ export function RiskManagementSection() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className="bg-amber-50">
+                  <TableRow className="bg-ochre-tint">
                     <TableCell colSpan={3}>
                       <Button
                         onClick={addRiskRow}
                         variant="ghost"
                         size="sm"
-                        className="gap-2 text-amber-700"
+                        className="gap-2 text-ochre-text"
                       >
                         <Plus className="w-4 h-4" />
                         Add Risk
@@ -114,31 +108,31 @@ export function RiskManagementSection() {
             </div>
           </div>
 
-          <div className="p-4 bg-sky-50 border-l-4 border-sky-400 rounded">
-            <p className="text-sm text-sky-900 mb-2">
-              <span>💡 Example:</span>
+          <div className="p-4 bg-forest-tint border-l-4 border-forest rounded">
+            <p className="text-base text-forest-dark mb-2">
+              <span>Example:</span>
             </p>
-            <div className="text-sm text-stone-700 space-y-2">
+            <div className="text-base text-ink space-y-2">
               <div className="grid grid-cols-3 gap-4 p-2 bg-white rounded">
                 <div>
-                  <span className="text-xs text-stone-500">Risk:</span>
+                  <span className="text-[15px] text-ink-muted">Risk:</span>
                   <p>Seasonal tourism demand may vary</p>
                 </div>
                 <div>
-                  <span className="text-xs text-stone-500">Likelihood:</span>
+                  <span className="text-[15px] text-ink-muted">Likelihood:</span>
                   <p>Medium</p>
                 </div>
                 <div>
-                  <span className="text-xs text-stone-500">Mitigation:</span>
+                  <span className="text-[15px] text-ink-muted">Mitigation:</span>
                   <p>Develop year-round online sales platform + diversify product lines</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-4 bg-amber-50 border-2 border-amber-200 rounded">
-            <h3 className="text-amber-900 mb-2">⚠️ Common Risk Categories</h3>
-            <ul className="text-sm text-stone-700 space-y-1 list-disc list-inside grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div className="p-4 bg-ochre-tint border border-[#EBD3A8] rounded">
+            <h3 className="text-ochre-text mb-2">Common Risk Categories</h3>
+            <ul className="text-base text-ink space-y-1 list-disc list-inside grid grid-cols-1 md:grid-cols-2 gap-2">
               <li>Financial (budget overruns, funding delays)</li>
               <li>Operational (staffing, supply chain)</li>
               <li>Market (demand fluctuation, competition)</li>
@@ -152,7 +146,7 @@ export function RiskManagementSection() {
 
           <div>
             <Label htmlFor="risk-summary">Overall Risk Mitigation Strategy</Label>
-            <p className="text-sm text-stone-600 mt-1 mb-2">
+            <p className="text-base text-ink-muted mt-1 mb-2">
               Provide a narrative summary of your major risks and how you will address them.
             </p>
             <Textarea
@@ -164,7 +158,6 @@ export function RiskManagementSection() {
             />
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
   );
 }

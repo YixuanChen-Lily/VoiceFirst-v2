@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { DocumentUploadSection } from './sections/DocumentUploadSection';
 import { CoverPageSection } from './sections/CoverPageSection';
 import { ExecutiveSummarySection } from './sections/ExecutiveSummarySection';
@@ -13,10 +13,11 @@ import { RiskManagementSection } from './sections/RiskManagementSection';
 import { AttachmentsSection } from './sections/AttachmentsSection';
 import { ProgressTracker } from './ProgressTracker';
 import { AIChatPanel } from './chat/AIChatPanel';
-import { Button } from './ui/button';
-import { Save, FileDown, ArrowLeft, Menu, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { AppMark } from './brand/AppMark';
+import { FileDown, ArrowLeft, MessageCircle, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useProposal } from '../context/ProposalContext';
 import { exportProposalDoc, type ProposalPayload } from '../lib/api';
+import { STEP_NAMES } from '../lib/proposalSteps';
 
 interface ProposalBuilderProps {
   onBack: () => void;
@@ -28,28 +29,25 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
-  const totalSections = 12;
+  const totalSections = STEP_NAMES.length;
+  const mainRef = useRef<HTMLElement>(null);
   const { data, proposalId, saveStatus, lastSavedAt, saveError, hasUnsavedChanges, saveNow } = useProposal();
   const isSaving = saveStatus === 'saving';
 
+  const goToSection = (section: number) => {
+    setCurrentSection(section);
+    mainRef.current?.scrollTo({ top: 0 });
+  };
+
   const handleNext = () => {
-    if (currentSection < totalSections - 1) {
-      setCurrentSection(currentSection + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    if (currentSection < totalSections - 1) goToSection(currentSection + 1);
   };
 
   const handlePrevious = () => {
-    if (currentSection > 0) {
-      setCurrentSection(currentSection - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    if (currentSection > 0) goToSection(currentSection - 1);
   };
 
-  const handleSectionClick = (section: number) => {
-    setCurrentSection(section);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const handleSectionClick = goToSection;
 
   const buildPayload = (): ProposalPayload => {
     const objectives = [data.objective1, data.objective2, data.objective3].filter(
@@ -104,12 +102,12 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
         .replace(/^-+|-+$/g, '') || 'proposal';
       const filename = `${safeTitle}-draft-proposal.docx`;
       downloadBlob(blob, filename);
-      setSubmitStatus('Proposal exported successfully.');
+      setSubmitStatus('Your Word document is downloading.');
     } catch (error) {
       setSubmitStatus(
         error instanceof Error
-          ? `Unable to export proposal: ${error.message}`
-          : 'Unable to export proposal. Please try again.',
+          ? `Couldn't make the Word document: ${error.message}`
+          : "Couldn't make the Word document. Please try again.",
       );
     } finally {
       setIsExporting(false);
@@ -128,65 +126,88 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
 
   const SaveIcon = saveStatus === 'saving' ? Loader2 : saveStatus === 'error' ? AlertCircle : CheckCircle2;
 
+  const prevName = currentSection > 0 ? STEP_NAMES[currentSection - 1] : null;
+  const nextName = currentSection < totalSections - 1 ? STEP_NAMES[currentSection + 1] : null;
+  const canSaveNow = saveStatus === 'error' || hasUnsavedChanges;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-50 to-stone-100">
-      {/* Header */}
-      <div className="bg-emerald-800 text-white py-6 px-4 shadow-lg">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              onClick={onBack}
-              className="gap-2 text-white hover:bg-emerald-700"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Home
-            </Button>
-            <div>
-              <h1 className="text-xl">Grant Proposal Builder</h1>
-              <p className="text-emerald-100 text-sm">
-                {existingDraft ? `Improving: ${existingDraft.name}` : data.projectTitle.trim() || 'New proposal'}
-              </p>
-              <p
-                role="status"
-                className={`mt-1 flex items-center gap-1 text-xs ${
-                  saveStatus === 'error' ? 'text-amber-200' : 'text-emerald-100'
-                }`}
-              >
-                <SaveIcon className={`w-3.5 h-3.5 ${saveStatus === 'saving' ? 'animate-spin' : ''}`} />
-                {saveLabel}
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className="gap-2 text-white hover:bg-emerald-700 md:hidden"
+    <div className="h-screen flex flex-col bg-birch text-ink font-readable text-[17px] leading-relaxed">
+      <header className="bg-white border-b border-line px-4 sm:px-7 py-3.5 flex items-center gap-4 sm:gap-5">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-2.5 shrink-0 rounded-lg"
+          aria-label="Back to home"
+        >
+          <AppMark size={38} />
+          <span className="hidden sm:inline-flex items-center gap-1.5 text-base text-ink-muted">
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+            Home
+          </span>
+        </button>
+        <div className="flex-1 min-w-0 pl-4 sm:pl-5 border-l border-line">
+          <p className="font-bold text-lg truncate">
+            {existingDraft ? `Improving: ${existingDraft.name}` : data.projectTitle.trim() || 'New proposal'}
+          </p>
+          <p
+            role="status"
+            className={`flex items-center gap-1.5 text-[15px] ${saveStatus === 'error' ? 'text-ochre-text' : 'text-ink-muted'}`}
           >
-            <Menu className="w-5 h-5" />
-            AI Assistant
-          </Button>
+            <SaveIcon
+              aria-hidden="true"
+              className={`w-4 h-4 shrink-0 ${saveStatus === 'saving' ? 'animate-spin' : ''} ${
+                saveStatus === 'error' ? 'text-ochre' : 'text-forest'
+              }`}
+            />
+            <span className="truncate">{saveLabel}</span>
+            {canSaveNow && !isSaving && (
+              <button
+                type="button"
+                onClick={saveNow}
+                className="shrink-0 font-bold text-forest underline underline-offset-2 hover:text-forest-dark"
+              >
+                Save now
+              </button>
+            )}
+          </p>
         </div>
-      </div>
+        <button
+          type="button"
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className="md:hidden inline-flex items-center gap-2 min-h-11 px-3 rounded-lg text-forest-dark bg-forest-tint font-bold"
+        >
+          <MessageCircle className="w-5 h-5" aria-hidden="true" />
+          Assistant
+        </button>
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={isSaving || isExporting}
+          className="hidden sm:inline-flex items-center gap-2 min-h-[46px] px-5 rounded-[10px] bg-forest hover:bg-forest-dark text-white font-bold transition-colors disabled:opacity-60"
+        >
+          {isExporting ? (
+            <Loader2 className="w-[18px] h-[18px] animate-spin" aria-hidden="true" />
+          ) : (
+            <FileDown className="w-[18px] h-[18px]" aria-hidden="true" />
+          )}
+          {isExporting ? 'Preparing…' : 'Download as Word'}
+        </button>
+      </header>
 
-      {/* Main Layout */}
-      <div className="flex max-w-7xl mx-auto">
-        {/* Left: Form Content */}
-        <div className={`flex-1 transition-all ${isChatOpen ? 'md:w-[60%]' : 'w-full'}`}>
-          {/* Progress Tracker */}
-          <div className="sticky top-0 z-10 bg-white shadow-md">
-            <div className="px-4 py-4">
-              <ProgressTracker
-                currentSection={currentSection}
-                totalSections={totalSections}
-                onSectionClick={handleSectionClick}
-              />
-            </div>
+      {submitStatus && (
+        <p role="status" className="px-4 sm:px-7 py-2 bg-forest-tint text-forest-dark text-base border-b border-line">
+          {submitStatus}
+        </p>
+      )}
+
+      <div className="flex-1 flex min-h-0">
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="px-4 sm:px-8 py-4 border-b border-line bg-birch">
+            <ProgressTracker currentSection={currentSection} onSectionClick={handleSectionClick} />
           </div>
 
-          {/* Section Content */}
-          <div className="px-4 py-8">
-            <div className="space-y-8">
+          <main ref={mainRef} className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-12 py-9">
+            <div className="max-w-[680px] mx-auto">
               {currentSection === 0 && <DocumentUploadSection />}
               {currentSection === 1 && <CoverPageSection />}
               {currentSection === 2 && <ExecutiveSummarySection />}
@@ -199,81 +220,59 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
               {currentSection === 9 && <AlignmentSection />}
               {currentSection === 10 && <RiskManagementSection />}
               {currentSection === 11 && <AttachmentsSection />}
-            </div>
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between items-center mt-12 pt-8 border-t-2 border-stone-200">
-              <Button
-                onClick={handlePrevious}
-                disabled={currentSection === 0}
-                variant="outline"
-                size="lg"
-                className="border-emerald-700 text-emerald-700 hover:bg-emerald-50"
-              >
-                ← Previous
-              </Button>
-              
-              <div className="text-stone-600 text-sm">
-                Section {currentSection + 1} of {totalSections}
+              <div className="flex flex-wrap justify-between items-center gap-3 mt-10 pt-6 border-t border-line">
+                {prevName ? (
+                  <button
+                    type="button"
+                    onClick={handlePrevious}
+                    className="min-h-12 px-5 rounded-[10px] border-[1.5px] border-line bg-white hover:border-forest font-bold transition-colors"
+                  >
+                    Back: {prevName}
+                  </button>
+                ) : (
+                  <span />
+                )}
+                {nextName ? (
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    className="min-h-12 px-5 rounded-[10px] bg-forest hover:bg-forest-dark text-white font-bold transition-colors"
+                  >
+                    Next: {nextName}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleExport}
+                    disabled={isSaving || isExporting}
+                    className="inline-flex items-center gap-2 min-h-12 px-5 rounded-[10px] bg-forest hover:bg-forest-dark text-white font-bold transition-colors disabled:opacity-60"
+                  >
+                    <FileDown className="w-[18px] h-[18px]" aria-hidden="true" />
+                    {isExporting ? 'Preparing…' : 'Download as Word'}
+                  </button>
+                )}
               </div>
-
-              <Button
-                onClick={handleNext}
-                disabled={currentSection === totalSections - 1}
-                size="lg"
-                className="bg-emerald-700 hover:bg-emerald-800"
-              >
-                Next →
-              </Button>
             </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4 justify-center mt-8 pb-12">
-              <Button
-                variant="outline"
-                size="lg"
-                className="gap-2 border-sky-600 text-sky-700 hover:bg-sky-50"
-                onClick={saveNow}
-                disabled={isSaving || isExporting}
-              >
-                <Save className="w-5 h-5" />
-                {isSaving ? 'Saving…' : 'Save now'}
-              </Button>
-              <Button
-                size="lg"
-                className="gap-2 bg-sky-700 hover:bg-sky-800"
-                onClick={handleExport}
-                disabled={isSaving || isExporting}
-              >
-                <FileDown className="w-5 h-5" />
-                {isExporting ? 'Preparing...' : 'Export Proposal'}
-              </Button>
-            </div>
-            {submitStatus && (
-              <div className="text-center text-sm text-stone-600">
-                {submitStatus}
-              </div>
-            )}
-          </div>
+          </main>
         </div>
 
-        {/* Right: AI Chat Panel */}
         {isChatOpen && (
-          <div className="hidden md:block w-[40%] border-l border-stone-200 bg-white sticky top-0 h-screen overflow-hidden">
-            <AIChatPanel 
-              currentSection={currentSection} 
+          <aside aria-label="Assistant" className="hidden md:flex w-[400px] lg:w-[440px] shrink-0 border-l border-line bg-white">
+            <AIChatPanel
+              currentSection={currentSection}
               onClose={() => setIsChatOpen(false)}
               hasExistingDraft={!!existingDraft}
             />
-          </div>
+          </aside>
         )}
       </div>
 
-      {/* Mobile Chat Overlay */}
+      {/* On small screens the assistant covers the page and closes with its own button. */}
       {isChatOpen && (
         <div className="md:hidden fixed inset-0 bg-white z-50 overflow-hidden">
-          <AIChatPanel 
-            currentSection={currentSection} 
+          <AIChatPanel
+            currentSection={currentSection}
             onClose={() => setIsChatOpen(false)}
             hasExistingDraft={!!existingDraft}
           />

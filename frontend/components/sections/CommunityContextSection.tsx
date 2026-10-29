@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
+import { STEP_NAMES } from '../../lib/proposalSteps';
 import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
-import { MapPin, Upload, Info } from 'lucide-react';
+import { Upload, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { useProposal } from '../../context/ProposalContext';
 
@@ -20,14 +20,8 @@ export function CommunityContextSection() {
   };
 
   return (
-    <Card className="border-2 border-emerald-200 shadow-lg">
-      <CardContent className="p-8">
-        <SectionHeader
-          number={3}
-          title="Community / Background Context"
-          icon={MapPin}
-          description="Describe your community and its current situation"
-        />
+    <div>
+        <SectionHeader title={STEP_NAMES[3]} description="Help the funder picture where the project happens and who it is for." />
 
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -59,7 +53,7 @@ export function CommunityContextSection() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>
-                    <Info className="w-4 h-4 text-stone-400" />
+                    <Info className="w-4 h-4 text-[#8C867E]" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className="max-w-xs">Include population, location, key demographic facts</p>
@@ -109,9 +103,9 @@ export function CommunityContextSection() {
             />
           </div>
 
-          <div className="p-4 bg-stone-50 border-2 border-dashed border-stone-300 rounded">
+          <div className="p-4 bg-birch border border-dashed border-line rounded">
             <Label>Strategic Plan Reference (Optional)</Label>
-            <p className="text-sm text-stone-600 mt-1 mb-3">
+            <p className="text-base text-ink-muted mt-1 mb-3">
               Upload your community strategic plan if available
             </p>
             <div className="flex items-center gap-4">
@@ -129,12 +123,11 @@ export function CommunityContextSection() {
                 </label>
               </Button>
               {fileName && (
-                <span className="text-sm text-emerald-700">✓ {fileName}</span>
+                <span className="text-base text-forest">✓ {fileName}</span>
               )}
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
   );
 }

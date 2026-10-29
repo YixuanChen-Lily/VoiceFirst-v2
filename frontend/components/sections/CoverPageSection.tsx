@@ -1,23 +1,16 @@
 import React from 'react';
-import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
+import { STEP_NAMES } from '../../lib/proposalSteps';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { FileText } from 'lucide-react';
 import { useProposal } from '../../context/ProposalContext';
 
 export function CoverPageSection() {
   const { data, updateField } = useProposal();
 
   return (
-    <Card className="border-2 border-emerald-200 shadow-lg">
-      <CardContent className="p-8">
-        <SectionHeader
-          number={1}
-          title="Cover Page"
-          icon={FileText}
-          description="Basic information about your grant proposal"
-        />
+    <div>
+        <SectionHeader title={STEP_NAMES[1]} description="The basic details the funder needs first." />
 
         <div className="space-y-6">
           <div>
@@ -29,7 +22,7 @@ export function CoverPageSection() {
               value={data.projectTitle}
               onChange={(e) => updateField('projectTitle', e.target.value)}
             />
-            <p className="text-xs text-stone-500 mt-2 italic">
+            <p className="text-[15px] text-ink-muted mt-2 italic">
               Example: Establishing a Community-Owned Crafts & Eco-Tourism Social Enterprise
             </p>
           </div>
@@ -58,8 +51,8 @@ export function CoverPageSection() {
             </div>
           </div>
 
-          <div className="p-4 bg-amber-50 border-l-4 border-amber-400 rounded">
-            <h3 className="text-amber-900 mb-3">Contact Information</h3>
+          <div className="p-4 bg-ochre-tint border-l-4 border-ochre rounded">
+            <h3 className="text-ochre-text mb-3">Contact Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="contact-name">Contact Name *</Label>
@@ -117,7 +110,6 @@ export function CoverPageSection() {
             />
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
   );
 }

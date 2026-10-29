@@ -1,22 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { 
-  Mic, 
-  Upload, 
-  Send, 
-  Bot, 
-  X, 
-  Volume2, 
-  FileText,
-  Sparkles,
-  Loader
-} from 'lucide-react';
+import { Mic, Send, Square, X, Volume2, FileText, Loader } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useProposal } from '../../context/ProposalContext';
 import type { ProposalData } from '../../context/ProposalContext';
 import { chatWithAssistant, transcribeAudio, type ChatSource, type ConversationMessage } from '../../lib/api';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { STEP_NAMES } from '../../lib/proposalSteps';
 
 interface AIChatPanelProps {
   currentSection: number;
@@ -27,9 +17,9 @@ interface AIChatPanelProps {
 type MessageType = 'ai' | 'user' | 'system' | 'action';
 
 const SOURCE_ORIGINS: Record<NonNullable<ChatSource['origin']>, string> = {
-  library: 'Document library',
-  background: 'Your background document',
-  attachment: 'Your attachment',
+  library: 'From the document library',
+  background: 'From your file',
+  attachment: 'From your attachment',
 };
 
 interface Message {
@@ -246,8 +236,8 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
       id: `${now}-welcome`,
       type: 'ai',
       content: hasExistingDraft
-        ? "Hello! I've reviewed your existing draft. Before we refine each section, let's make sure I understand your current goals."
-        : "Hello! I'm your AI Grant Assistant. I'll help you craft a strong proposal, but first I'd love to understand the big picture.",
+        ? "Hello! I've read your draft. Before we work on each part, I'd like to make sure I understand your goals."
+        : "Hello! I'm here to help you write a strong proposal. First, I'd like to understand the big picture.",
       timestamp: new Date(),
     };
 
@@ -255,7 +245,7 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
       id: `${now + 1}-quickstart`,
       type: 'ai',
       content:
-        "Quick start question: In a few sentences, what's the goal of your project, who will benefit, and why it matters right now? I'll draft a starting proposal outline from your answer before we dive into each section.",
+        "To start: in a few sentences, what is your project's goal, who will benefit, and why does it matter now? I'll use your answer to sketch a first outline.",
       timestamp: new Date(),
     };
 
@@ -746,157 +736,104 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
     audio.play().catch(() => undefined);
   }, []);
 
+  const helpingWith = !isQuickStartComplete ? 'Getting started' : STEP_NAMES[currentSection];
+  const timeOf = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
   return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-sky-50 to-blue-50">
-      {/* Header */}
-      <div className="p-4 bg-white border-b border-stone-200 shadow-sm flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
-            <Bot className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h3 className="text-stone-900">AI Assistant</h3>
-            <p className="text-xs text-emerald-600 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />
-              Powered by OpenAI & ElevenLabs
-            </p>
-          </div>
+    <div className="h-full w-full flex flex-col bg-white text-ink font-readable text-[17px] leading-relaxed">
+      <div className="px-5 py-4 border-b border-line flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold">Assistant</h2>
+          <p className="text-[15px] text-ink-muted truncate">
+            Helping with: <strong className="text-ink">{helpingWith}</strong>
+          </p>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="md:hidden">
-          <X className="w-5 h-5" />
+        <Button variant="ghost" onClick={onClose} className="md:hidden gap-1.5">
+          <X className="w-5 h-5" aria-hidden="true" />
+          Close
         </Button>
       </div>
 
-      {/* Current Section Indicator */}
-      <div className="px-4 py-3 bg-emerald-100 border-b border-emerald-200">
-        <p className="text-xs text-emerald-900 flex items-center gap-2 mb-1">
-          <FileText className="w-4 h-4" />
-          {!isQuickStartComplete ? (
-            <span>Working on: <strong>Quick Start Intake</strong></span>
-          ) : currentSection === 0 ? (
-            <span>Working on: <strong>Upload Documents</strong></span>
-          ) : (
-            <span>Working on: <strong>{sectionNames[currentSection - 1]}</strong></span>
-          )}
-        </p>
-        {/* Show uploaded documents count */}
-        {isQuickStartComplete && (
-          <p className="text-xs text-emerald-700 flex items-center gap-2 mt-1 opacity-70">
-            📚 RAG Context: Coming soon — you'll be able to upload documents to personalize responses even more.
-          </p>
-        )}
-      </div>
-
-      {/* Message Thread */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 bg-birch">
         <AnimatePresence>
           {messages.map((message) => (
             <motion.div
               key={message.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
             >
               {message.type === 'ai' && (
-                <div className="flex justify-start">
-                  <div className="max-w-[85%]">
-                    <div className="bg-white rounded-2xl rounded-tl-sm p-4 shadow-sm border border-stone-200">
-                      <p className="text-sm text-stone-800 leading-relaxed">
-                        {message.content}
-                      </p>
-                      {message.sources && message.sources.length > 0 && (
-                        <div className="mt-3 pt-2 border-t border-stone-100 space-y-1">
-                          <p className="text-xs text-stone-500">Sources</p>
-                          {message.sources.map((source) => (
-                            <p key={source.number} className="text-xs text-stone-600">
-                              [{source.number}] {source.title.replace(/\.(pdf|docx|xlsx|txt|md|csv)$/i, '')}
-                              {source.section ? ` › ${source.section}` : ''}
-                              {source.page ? `, page ${source.page}` : ''}
-                              <span className="text-stone-400"> · {SOURCE_ORIGINS[source.origin ?? 'library']}</span>
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between mt-2">
-                        <p className="text-xs text-stone-400">
-                          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div className="max-w-[90%] bg-white border border-line rounded-2xl rounded-bl-[4px] px-4 py-3.5">
+                  <p>{message.content}</p>
+                  {message.sources && message.sources.length > 0 && (
+                    <div className="mt-3 pt-2.5 border-t border-line space-y-1">
+                      {message.sources.map((source) => (
+                        <p key={source.number} className="flex items-start gap-2 text-[15px] text-ink-muted">
+                          <FileText className="w-4 h-4 mt-1 shrink-0" aria-hidden="true" />
+                          <span>
+                            {SOURCE_ORIGINS[source.origin ?? 'library']}:{' '}
+                            {source.title.replace(/\.(pdf|docx|xlsx|txt|md|csv)$/i, '')}
+                            {source.section ? ` › ${source.section}` : ''}
+                            {source.page ? `, page ${source.page}` : ''}
+                          </span>
                         </p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={!message.audioSrc}
-                          className="h-6 gap-1 text-xs text-emerald-600 hover:text-emerald-700 disabled:text-stone-400"
-                          onClick={() => handlePlayAudio(message)}
-                        >
-                          <Volume2 className="w-3 h-3" />
-                          {message.audioSrc ? 'Play' : 'No Audio'}
-                        </Button>
-                      </div>
+                      ))}
                     </div>
+                  )}
+                  <div className="flex items-center justify-between gap-3 mt-1.5">
+                    <p className="text-sm text-[#8C867E]">{timeOf(message.timestamp)}</p>
+                    {message.audioSrc && (
+                      <button
+                        type="button"
+                        onClick={() => handlePlayAudio(message)}
+                        className="inline-flex items-center gap-1.5 min-h-9 text-[15px] font-bold text-forest hover:text-forest-dark"
+                      >
+                        <Volume2 className="w-4 h-4" aria-hidden="true" />
+                        Read aloud
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
 
               {message.type === 'action' && message.pendingUpdates && (
-                <div className="flex justify-start">
-                  <div className="max-w-[90%]">
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl rounded-tl-sm p-4 shadow-sm">
-                      <p className="text-sm text-emerald-900 leading-relaxed">
-                        {message.content}
-                      </p>
-                      {message.pendingUpdates.labels.length > 1 && (
-                        <ul className="mt-2 text-xs text-emerald-800 list-disc list-inside space-y-1">
-                          {message.pendingUpdates.labels.map((label) => (
-                            <li key={label}>{label}</li>
-                          ))}
-                        </ul>
-                      )}
-                      <p className="text-xs text-emerald-700 mt-2">
-                        Apply these updates to the form?
-                      </p>
-                      <div className="flex items-center gap-2 mt-3">
-                        <Button
-                          size="sm"
-                          className="bg-emerald-600 hover:bg-emerald-700"
-                          onClick={() => handleApplyPendingUpdates(message.id, message.pendingUpdates!)}
-                        >
-                          Apply Updates
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-stone-300 text-stone-600 hover:bg-stone-100"
-                          onClick={() => handleSkipPendingUpdates(message.id, message.pendingUpdates!)}
-                        >
-                          Not Now
-                        </Button>
-                      </div>
-                    </div>
+                <div className="max-w-[92%] bg-forest-tint border border-[#C7DACD] rounded-2xl px-4 py-3.5 text-forest-dark">
+                  <p className="font-bold mb-1">Add this to your proposal?</p>
+                  <p className="text-base">{message.content}</p>
+                  {message.pendingUpdates.labels.length > 1 && (
+                    <ul className="mt-2 text-base list-disc list-inside space-y-0.5">
+                      {message.pendingUpdates.labels.map((label) => (
+                        <li key={label}>{label}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <Button onClick={() => handleApplyPendingUpdates(message.id, message.pendingUpdates!)}>
+                      Add it
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-[#C7DACD]"
+                      onClick={() => handleSkipPendingUpdates(message.id, message.pendingUpdates!)}
+                    >
+                      Not now
+                    </Button>
                   </div>
                 </div>
               )}
 
               {message.type === 'user' && (
-                <div className="flex justify-end">
-                  <div className="max-w-[85%] bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl rounded-tr-sm p-4 shadow-sm">
-                    <p className="text-sm text-white leading-relaxed">
-                      {message.content}
-                    </p>
-                    <p className="text-xs text-emerald-100 mt-2 text-right">
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
+                <div className="ml-auto max-w-[85%] w-fit bg-forest text-white rounded-2xl rounded-br-[4px] px-4 py-3.5">
+                  <p>{message.content}</p>
+                  <p className="text-sm text-[#CFE0D5] mt-1 text-right">{timeOf(message.timestamp)}</p>
                 </div>
               )}
 
               {message.type === 'system' && (
-                <div className="flex justify-center">
-                  <div className="w-full bg-amber-100 border-l-4 border-amber-500 rounded p-3">
-                    <p className="text-xs text-amber-900">
-                      {message.content}
-                    </p>
-                  </div>
+                <div className="bg-ochre-tint border-l-4 border-ochre rounded-lg px-3.5 py-2.5">
+                  <p className="text-base text-ochre-text">{message.content}</p>
                 </div>
               )}
             </motion.div>
@@ -904,63 +841,43 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
         </AnimatePresence>
 
         {isTyping && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex justify-start"
-          >
-            <div className="bg-white rounded-2xl rounded-tl-sm p-4 shadow-sm border border-stone-200">
-              <div className="flex items-center gap-2">
-                <Loader className="w-4 h-4 animate-spin text-emerald-600" />
-                <p className="text-sm text-stone-600">AI is thinking...</p>
-              </div>
-            </div>
-          </motion.div>
+          <div className="w-fit bg-white border border-line rounded-2xl rounded-bl-[4px] px-4 py-3.5 flex items-center gap-2">
+            <Loader className="w-4 h-4 animate-spin text-forest" aria-hidden="true" />
+            <p className="text-ink-muted">Thinking…</p>
+          </div>
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 bg-white border-t border-stone-200">
-        {/* Voice Indicator */}
+      <div className="px-5 pt-4 pb-5 border-t border-line">
         {isListening && (
-          <div className="mb-3 p-3 bg-red-100 border border-red-300 rounded-lg flex items-center gap-2">
-            <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 1, repeat: Infinity }}
-            >
-              <Mic className="w-4 h-4 text-red-600" />
-            </motion.div>
-            <p className="text-xs text-red-800">Listening... Speak now</p>
-          </div>
+          <p role="status" className="mb-3 px-3.5 py-2.5 rounded-lg bg-ochre-tint text-ochre-text flex items-center gap-2 text-base">
+            <Mic className="w-4 h-4 animate-pulse" aria-hidden="true" />
+            Listening. Speak now.
+          </p>
         )}
 
         {errorMessage && (
-          <div className="mb-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
+          <p role="alert" className="mb-3 px-3.5 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-800 text-base">
             {errorMessage}
-          </div>
+          </p>
         )}
 
-        {/* Voice Button */}
-        <div className="mb-3">
-          <Button
-            size="lg"
-            onClick={handleVoiceRecord}
-            className={`w-full gap-3 py-6 text-base transition-all ${
-              isRecording
-                ? 'bg-red-600 hover:bg-red-700 animate-pulse'
-                : 'bg-emerald-600 hover:bg-emerald-700'
-            }`}
-          >
-            <Mic className="w-5 h-5" />
-            {isRecording ? '🎤 Recording... Tap to stop' : '🎤 Tap to Speak'}
-          </Button>
-          <p className="text-xs text-center text-stone-500 mt-1">
-            Powered by ElevenLabs Voice AI
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={handleVoiceRecord}
+          className={`w-full min-h-14 rounded-xl text-white text-lg font-bold flex items-center justify-center gap-2.5 transition-colors ${
+            isRecording ? 'bg-[#A4462E] hover:bg-[#8A3A26]' : 'bg-forest hover:bg-forest-dark'
+          }`}
+        >
+          {isRecording ? (
+            <Square className="w-5 h-5 fill-current" aria-hidden="true" />
+          ) : (
+            <Mic className="w-[22px] h-[22px]" aria-hidden="true" />
+          )}
+          {isRecording ? 'Recording. Tap to stop' : 'Tap to talk'}
+        </button>
 
-        {/* Text Input */}
-        <div className="flex gap-2 mb-3">
+        <div className="flex gap-2 mt-3">
           <Input
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
@@ -970,32 +887,20 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
                 handleTextSubmit();
               }
             }}
-            placeholder="Or type your message..."
+            placeholder="Or type here…"
+            aria-label="Type a message"
             className="flex-1"
           />
           <Button
             onClick={handleTextSubmit}
             size="icon"
-            className="bg-emerald-600 hover:bg-emerald-700"
+            variant="secondary"
+            aria-label="Send"
+            className="size-12"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-5 h-5" aria-hidden="true" />
           </Button>
         </div>
-
-        {/* Upload Button */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger className="w-full">
-              <div className="w-full gap-2 border-2 border-dashed border-stone-300 text-stone-500 text-sm py-3 rounded-md flex items-center justify-center cursor-not-allowed bg-stone-100">
-                <Upload className="w-4 h-4" />
-                📎 Coming Soon: Upload Documents for RAG Context
-              </div>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs text-xs">
-              We're enhancing how the assistant uses your attachments. Stay tuned—soon you'll be able to upload community and funding documents directly from here.
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
       </div>
     </div>
   );

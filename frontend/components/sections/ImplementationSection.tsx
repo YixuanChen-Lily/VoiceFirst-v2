@@ -1,10 +1,9 @@
 import React from 'react';
-import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
+import { STEP_NAMES } from '../../lib/proposalSteps';
 import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Settings } from 'lucide-react';
 import { useProposal } from '../../context/ProposalContext';
 
 export function ImplementationSection() {
@@ -18,19 +17,13 @@ export function ImplementationSection() {
   };
 
   return (
-    <Card className="border-2 border-sky-200 shadow-lg">
-      <CardContent className="p-8">
-        <SectionHeader
-          number={6}
-          title="Implementation Plan / Governance"
-          icon={Settings}
-          description="How will the project be organized, managed, and executed?"
-        />
+    <div>
+        <SectionHeader title={STEP_NAMES[6]} description="Who runs the project, and when each part happens." />
 
         <div className="space-y-6">
           <div>
             <Label htmlFor="governance">Governance Structure *</Label>
-            <p className="text-sm text-stone-600 mt-1 mb-2">
+            <p className="text-base text-ink-muted mt-1 mb-2">
               Who will oversee the project? Board, committee, management team?
             </p>
             <Textarea
@@ -44,10 +37,10 @@ export function ImplementationSection() {
 
           <div>
             <Label>Timeline</Label>
-            <p className="text-sm text-stone-600 mt-1 mb-3">
+            <p className="text-base text-ink-muted mt-1 mb-3">
               Key milestones and timeline
             </p>
-            <div className="p-4 bg-stone-50 rounded-lg border-2 border-dashed border-stone-300">
+            <div className="p-4 bg-birch rounded-lg border border-dashed border-line">
               <div className="space-y-3">
                 {data.milestones.map((milestone, index) => (
                   <div className="flex items-center gap-3" key={`milestone-${index}`}>
@@ -71,7 +64,7 @@ export function ImplementationSection() {
 
           <div>
             <Label htmlFor="responsibilities">Responsibilities</Label>
-            <p className="text-sm text-stone-600 mt-1 mb-2">
+            <p className="text-base text-ink-muted mt-1 mb-2">
               Who leads what? Key roles and responsibilities
             </p>
             <Textarea
@@ -85,7 +78,7 @@ export function ImplementationSection() {
 
           <div>
             <Label htmlFor="partnerships">Partnerships</Label>
-            <p className="text-sm text-stone-600 mt-1 mb-2">
+            <p className="text-base text-ink-muted mt-1 mb-2">
               List key partners, collaborators, or supporting organizations
             </p>
             <Textarea
@@ -97,9 +90,9 @@ export function ImplementationSection() {
             />
           </div>
 
-          <div className="p-4 bg-amber-50 border-l-4 border-amber-400 rounded">
-            <Label htmlFor="risk-mitigation" className="text-amber-900">Risk Mitigation (Brief Overview)</Label>
-            <p className="text-sm text-stone-600 mt-1 mb-2">
+          <div className="p-4 bg-ochre-tint border-l-4 border-ochre rounded">
+            <Label htmlFor="risk-mitigation" className="text-ochre-text">Risk Mitigation (Brief Overview)</Label>
+            <p className="text-base text-ink-muted mt-1 mb-2">
               What could go wrong and how will you address it? (Detailed in Section 10)
             </p>
             <Textarea
@@ -111,7 +104,6 @@ export function ImplementationSection() {
             />
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
   );
 }
