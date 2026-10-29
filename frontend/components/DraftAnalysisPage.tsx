@@ -1,19 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
-import { Progress } from './ui/progress';
-import { Badge } from './ui/badge';
-import { 
-  ArrowLeft, 
-  FileText, 
-  CheckCircle, 
-  AlertTriangle, 
-  AlertCircle,
-  TrendingUp,
-  Sparkles,
-  ArrowRight
-} from 'lucide-react';
-import { motion } from 'motion/react';
+import { CheckCircle, AlertTriangle, AlertCircle, ArrowRight } from 'lucide-react';
+import { SubPage } from './layout/SubPage';
 import { analyzeDraft, DraftAnalysis as DraftAnalysisPayload } from '../lib/api';
 
 interface DraftAnalysisPageProps {
@@ -57,18 +45,18 @@ export function DraftAnalysisPage({ draftFile, onContinue, onBack }: DraftAnalys
         if (payload.truncated) {
           const share = Math.round((payload.characters_analysed / payload.characters_total) * 100);
           notices.push(
-            `This document is very long, so only the first ${share}% of it was analysed. Sections after that point were not scored.`,
+            `This document is very long, so only the first ${share}% of it was checked. Parts after that point were not scored.`,
           );
         }
         if (payload.method === 'keywords') {
           notices.push(
-            'AI analysis was unavailable, so these scores come from a simple keyword check and are only a rough guide. Try again later for a full analysis.',
+            'The full check was unavailable, so these scores come from a simple keyword check and are only a rough guide. Try again later for a full check.',
           );
         }
         setAnalysis({ ...transformed, notices });
       } catch (err) {
         if (!isMounted) return;
-        setError(err instanceof Error ? err.message : 'Unable to analyze draft. Please try again.');
+        setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       } finally {
         if (isMounted) {
           setIsAnalyzing(false);
@@ -141,250 +129,168 @@ export function DraftAnalysisPage({ draftFile, onContinue, onBack }: DraftAnalys
       .join(' ');
   };
 
+  // Forest for strong, ochre for in-between, clay for weak or missing.
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-emerald-600';
-    if (score >= 60) return 'text-amber-600';
-    return 'text-red-600';
+    if (score >= 80) return 'text-forest';
+    if (score >= 60) return 'text-ochre-text';
+    return 'text-[#A4462E]';
   };
 
   const getScoreLabel = (score: number) => {
     if (score >= 80) return 'Strong';
     if (score >= 60) return 'Good';
-    if (score >= 40) return 'Needs Work';
+    if (score >= 40) return 'Needs work';
     return 'Weak';
+  };
+
+  const getScoreSummary = (score: number) => {
+    if (score >= 80) return 'Your draft is in good shape. A few changes could make it even stronger.';
+    if (score >= 60) return 'Your draft has a solid base. The suggestions below show where to focus.';
+    return 'Your draft needs more work in several places. The assistant can help you fill the gaps, one part at a time.';
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'excellent':
-        return <CheckCircle className="w-5 h-5 text-emerald-600" />;
       case 'good':
-        return <CheckCircle className="w-5 h-5 text-blue-600" />;
+        return <CheckCircle className="w-5 h-5 text-forest" aria-hidden="true" />;
       case 'needs-improvement':
-        return <AlertTriangle className="w-5 h-5 text-amber-600" />;
+        return <AlertTriangle className="w-5 h-5 text-ochre" aria-hidden="true" />;
       case 'missing':
-        return <AlertCircle className="w-5 h-5 text-red-600" />;
+        return <AlertCircle className="w-5 h-5 text-[#A4462E]" aria-hidden="true" />;
     }
   };
 
-  if (isAnalyzing) {
+  if (isAnalyzing || error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center">
-        <Card className="max-w-md mx-auto border-2 border-emerald-200">
-          <CardContent className="p-12 text-center">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center"
-            >
-              <Sparkles className="w-8 h-8 text-white" />
-            </motion.div>
-            <h2 className="text-stone-900 mb-4">Analyzing Your Proposal</h2>
-            <p className="text-stone-600 mb-6">
-              Our AI is reviewing your document using RAG technology and GPT-4o...
-            </p>
-            <div className="space-y-3 text-left text-sm text-stone-600">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                <span>Extracting document content</span>
+      <div className="min-h-screen bg-birch text-ink font-readable flex items-center justify-center px-6">
+        <div className="w-full max-w-md bg-white border border-line rounded-2xl p-8 sm:p-10 text-center">
+          {isAnalyzing ? (
+            <>
+              <div className="w-14 h-14 mx-auto mb-6 rounded-full border-4 border-forest-tint border-t-forest animate-spin" aria-hidden="true" />
+              <h1 className="text-2xl font-bold mb-2">Reading your draft</h1>
+              <p role="status" className="text-lg text-ink-muted mb-1">
+                Checking each part of {draftFile.name} and noting what could be stronger.
+              </p>
+              <p className="text-base text-ink-muted">This usually takes under a minute.</p>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="w-10 h-10 text-[#A4462E] mx-auto mb-4" aria-hidden="true" />
+              <h1 className="text-2xl font-bold mb-2">We couldn&apos;t read your draft</h1>
+              <p role="alert" className="text-lg text-ink-muted mb-6">
+                {error}
+              </p>
+              <div className="flex flex-col gap-2">
+                <Button onClick={() => window.location.reload()} size="lg">
+                  Try again
+                </Button>
+                <Button onClick={onBack} variant="outline" size="lg">
+                  Back to home
+                </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                <span>Analyzing section completeness</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <motion.div
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                >
-                  <Sparkles className="w-4 h-4 text-amber-600" />
-                </motion.div>
-                <span>Generating improvement suggestions...</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center px-4">
-        <Card className="max-w-md mx-auto border-2 border-red-200">
-          <CardContent className="p-8 text-center space-y-4">
-            <AlertCircle className="w-10 h-10 text-red-600 mx-auto" />
-            <h2 className="text-stone-900">Analysis Failed</h2>
-            <p className="text-stone-600 text-sm">
-              {error}
-            </p>
-            <div className="flex flex-col gap-2">
-              <Button onClick={onBack} variant="outline">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
-              <Button onClick={() => window.location.reload()}>
-                Retry
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </>
+          )}
+        </div>
       </div>
     );
   }
 
   if (!analysis) return null;
 
+  const listCard = (title: string, icon: React.ReactNode, items: string[], empty: string) => (
+    <section className="bg-white border border-line rounded-2xl p-6">
+      <h2 className="flex items-center gap-2 text-xl font-bold mb-4">
+        {icon}
+        {title}
+      </h2>
+      {items.length > 0 ? (
+        <ul className="space-y-3 list-disc pl-5 marker:text-ink-muted">
+          {items.map((item, index) => (
+            <li key={index}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-ink-muted">{empty}</p>
+      )}
+    </section>
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white">
-      <div className="max-w-5xl mx-auto px-6 py-12">
-        {/* Header */}
-        <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={onBack}
-            className="gap-2 text-stone-600 hover:text-stone-900 mb-6"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Home
-          </Button>
-
-          <div className="flex items-center gap-3 mb-4">
-            <FileText className="w-8 h-8 text-emerald-600" />
-            <div>
-              <h1 className="text-stone-900">Draft Analysis Complete</h1>
-              <p className="text-sm text-stone-600">{draftFile.name}</p>
-            </div>
-          </div>
-        </div>
-
+    <SubPage title="Your draft, checked" description={draftFile.name} onBack={onBack}>
+      <div className="flex flex-col gap-6 text-[17px] leading-relaxed">
         {analysis.notices.map((notice) => (
-          <div
+          <p
             key={notice}
             role="status"
-            className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            className="flex items-start gap-2.5 rounded-xl border-l-4 border-ochre bg-ochre-tint px-4 py-3 text-ochre-text"
           >
-            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
             <span>{notice}</span>
-          </div>
+          </p>
         ))}
 
-        {/* Overall Score Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Card className="border-2 border-emerald-200 bg-gradient-to-br from-white to-emerald-50 mb-8">
-            <CardContent className="p-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-stone-600 mb-2">Competitiveness Score</p>
-                  <h2 className={`${getScoreColor(analysis.overallScore)} mb-1`}>
-                    {analysis.overallScore}/100
-                  </h2>
-                  <Badge variant="outline" className={`${getScoreColor(analysis.overallScore)}`}>
-                    {getScoreLabel(analysis.overallScore)}
-                  </Badge>
-                </div>
-                <div className="text-right">
-                  <TrendingUp className={`w-16 h-16 ${getScoreColor(analysis.overallScore)}`} />
-                </div>
-              </div>
-              <Progress value={analysis.overallScore} className="h-3 mt-6" />
-              <p className="text-sm text-stone-600 mt-4">
-                Your proposal shows promise. With targeted improvements, you could increase your competitiveness significantly.
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
+        <section className="bg-white border border-line rounded-2xl p-6 sm:p-8">
+          <p className="text-base text-ink-muted mb-1">Overall score</p>
+          <p className="flex flex-wrap items-baseline gap-x-3">
+            <span className={`text-5xl font-bold ${getScoreColor(analysis.overallScore)}`}>{analysis.overallScore}</span>
+            <span className="text-xl text-ink-muted">out of 100</span>
+            <span className={`text-xl font-bold ${getScoreColor(analysis.overallScore)}`}>
+              · {getScoreLabel(analysis.overallScore)}
+            </span>
+          </p>
+          <div className="h-2.5 rounded bg-line overflow-hidden mt-5" aria-hidden="true">
+            <div className="h-full bg-forest" style={{ width: `${analysis.overallScore}%` }} />
+          </div>
+          <p className="text-lg mt-5">{getScoreSummary(analysis.overallScore)}</p>
+        </section>
 
-        {/* Section Breakdown */}
-        <Card className="border-2 border-stone-200 mb-8">
-          <CardContent className="p-8">
-            <h3 className="text-stone-900 mb-6">Section-by-Section Analysis</h3>
-            <div className="space-y-4">
-              {analysis.sections.map((section, index) => (
-                <motion.div
-                  key={section.name}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  className="p-4 bg-stone-50 rounded-lg border border-stone-200"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      {getStatusIcon(section.status)}
-                      <div>
-                        <p className="text-sm text-stone-900">{section.name}</p>
-                        <p className="text-xs text-stone-500 mt-1">{section.feedback}</p>
-                      </div>
-                    </div>
-                    <span className={`text-sm ${getScoreColor(section.score)}`}>
-                      {section.score > 0 ? `${section.score}%` : 'Missing'}
-                    </span>
+        {analysis.sections.length > 0 && (
+          <section className="bg-white border border-line rounded-2xl p-6 sm:p-8">
+            <h2 className="text-xl font-bold mb-4">Each part of your draft</h2>
+            <ul className="divide-y divide-line">
+              {analysis.sections.map((section) => (
+                <li key={section.name} className="flex items-start gap-3 py-4 first:pt-0 last:pb-0">
+                  <span className="mt-0.5 shrink-0">{getStatusIcon(section.status)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold">{section.name}</p>
+                    {section.feedback && <p className="text-base text-ink-muted mt-0.5">{section.feedback}</p>}
                   </div>
-                </motion.div>
+                  <span className={`shrink-0 font-bold ${getScoreColor(section.score)}`}>
+                    {section.score > 0 ? `${section.score}%` : 'Missing'}
+                  </span>
+                </li>
               ))}
-            </div>
-          </CardContent>
-        </Card>
+            </ul>
+          </section>
+        )}
 
-        {/* Strengths & Improvements */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Card className="border-2 border-emerald-200">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <CheckCircle className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-stone-900">Strengths</h3>
-              </div>
-              <ul className="space-y-2">
-                {analysis.strengths.map((strength, index) => (
-                  <li key={index} className="text-sm text-stone-700 flex items-start gap-2">
-                    <span className="text-emerald-600 mt-0.5">•</span>
-                    <span>{strength}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-amber-200">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <AlertTriangle className="w-5 h-5 text-amber-600" />
-                <h3 className="text-stone-900">Key Improvements</h3>
-              </div>
-              <ul className="space-y-2">
-                {analysis.improvements.slice(0, 4).map((improvement, index) => (
-                  <li key={index} className="text-sm text-stone-700 flex items-start gap-2">
-                    <span className="text-amber-600 mt-0.5">•</span>
-                    <span>{improvement}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {listCard(
+            'What works well',
+            <CheckCircle className="w-5 h-5 text-forest" aria-hidden="true" />,
+            analysis.strengths,
+            'No part stood out as strong yet.',
+          )}
+          {listCard(
+            'What to improve first',
+            <AlertTriangle className="w-5 h-5 text-ochre" aria-hidden="true" />,
+            analysis.improvements.slice(0, 4),
+            'No specific suggestions this time.',
+          )}
         </div>
 
-        {/* Action Button */}
-        <Card className="border-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-emerald-100">
-          <CardContent className="p-8 text-center">
-            <h3 className="text-stone-900 mb-3">Ready to Improve Your Proposal?</h3>
-            <p className="text-stone-700 mb-6 max-w-2xl mx-auto">
-              Continue with our AI assistant to strengthen weak sections, add missing content, and enhance your overall competitiveness.
-            </p>
-            <Button
-              onClick={onContinue}
-              size="lg"
-              className="bg-emerald-600 hover:bg-emerald-700 gap-2 px-8"
-            >
-              Continue with AI Assistant
-              <ArrowRight className="w-5 h-5" />
-            </Button>
-          </CardContent>
-        </Card>
+        <section className="bg-forest-tint border border-[#C7DACD] rounded-2xl p-6 sm:p-8 text-center">
+          <h2 className="text-2xl font-bold text-forest-dark mb-2">Ready to improve it?</h2>
+          <p className="text-lg text-forest-dark mb-6 max-w-2xl mx-auto">
+            The assistant will go through your proposal with you, one part at a time, starting with what needs the most work.
+          </p>
+          <Button onClick={onContinue} size="lg" className="gap-2 px-7 text-lg">
+            Continue with the assistant
+            <ArrowRight className="w-5 h-5" aria-hidden="true" />
+          </Button>
+        </section>
       </div>
-    </div>
+    </SubPage>
   );
 }

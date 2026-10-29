@@ -6,7 +6,7 @@ import { SignInScreen } from './SignInScreen';
 
 function CenteredMessage({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 text-center text-stone-600">
+    <div className="min-h-screen flex items-center justify-center px-6 text-center text-ink-muted font-readable">
       {children}
     </div>
   );
@@ -28,12 +28,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <div className="flex items-center justify-end gap-3 px-4 py-1.5 text-xs text-stone-600 bg-stone-100 border-b border-stone-200">
+      <div className="flex items-center justify-end gap-3 px-4 py-1.5 text-xs text-ink-muted bg-white border-b border-line font-readable">
         <span>{email}</span>
         <button
           type="button"
           onClick={signOut}
-          className="inline-flex items-center gap-1 text-stone-700 hover:text-stone-900 underline-offset-2 hover:underline"
+          className="inline-flex items-center gap-1 text-ink hover:text-forest-dark underline-offset-2 hover:underline"
         >
           <LogOut className="w-3.5 h-3.5" />
           Sign out

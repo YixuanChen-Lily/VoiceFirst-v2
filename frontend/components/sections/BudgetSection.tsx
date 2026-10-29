@@ -5,9 +5,9 @@ import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
-import { DollarSign, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { useProposal } from '../../context/ProposalContext';
+import { useProposal, type ProposalData } from '../../context/ProposalContext';
 
 interface BudgetItem {
   category: string;
@@ -47,89 +47,35 @@ export function BudgetSection() {
         <SectionHeader title={STEP_NAMES[7]} description="What the project costs and where the money comes from." />
 
         <div className="space-y-6">
-          <div className="p-4 bg-forest-tint border border-[#C7DACD] rounded-lg">
-            <Label className="text-forest-dark">Budget Summary</Label>
-            <p className="text-base text-forest-dark mt-1 mb-4">
-              Capture high-level budget numbers for quick reference.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <span className="block text-[15px] text-ink-muted uppercase tracking-wide">Total Project Cost</span>
-                <Input
-                  value={data.totalBudget}
-                  onChange={(e) => updateField('totalBudget', e.target.value)}
-                  placeholder="$0"
-                  className="mt-1 bg-white text-right"
-                />
-              </div>
-              <div>
-                <span className="block text-[15px] text-ink-muted uppercase tracking-wide">Grant Requested</span>
-                <Input
-                  value={data.requestedAmount}
-                  onChange={(e) => updateField('requestedAmount', e.target.value)}
-                  placeholder="$0"
-                  className="mt-1 bg-white text-right"
-                />
-              </div>
-              <div>
-                <span className="block text-[15px] text-ink-muted uppercase tracking-wide">Other Contributions</span>
-                <Input
-                  value={data.otherBudget}
-                  onChange={(e) => updateField('otherBudget', e.target.value)}
-                  placeholder="$0"
-                  className="mt-1 bg-white text-right"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-              <div>
-                <span className="block text-[15px] text-ink-muted uppercase tracking-wide">Personnel</span>
-                <Input
-                  value={data.personnelBudget}
-                  onChange={(e) => updateField('personnelBudget', e.target.value)}
-                  placeholder="$0"
-                  className="mt-1 bg-white text-right"
-                />
-              </div>
-              <div>
-                <span className="block text-[15px] text-ink-muted uppercase tracking-wide">Equipment</span>
-                <Input
-                  value={data.equipmentBudget}
-                  onChange={(e) => updateField('equipmentBudget', e.target.value)}
-                  placeholder="$0"
-                  className="mt-1 bg-white text-right"
-                />
-              </div>
-              <div>
-                <span className="block text-[15px] text-ink-muted uppercase tracking-wide">Training</span>
-                <Input
-                  value={data.trainingBudget}
-                  onChange={(e) => updateField('trainingBudget', e.target.value)}
-                  placeholder="$0"
-                  className="mt-1 bg-white text-right"
-                />
-              </div>
-              <div>
-                <span className="block text-[15px] text-ink-muted uppercase tracking-wide">Marketing</span>
-                <Input
-                  value={data.marketingBudget}
-                  onChange={(e) => updateField('marketingBudget', e.target.value)}
-                  placeholder="$0"
-                  className="mt-1 bg-white text-right"
-                />
-              </div>
-            </div>
-          </div>
+          <MoneyGroup
+            title="Where the money comes from"
+            fields={[
+              { field: 'totalBudget', label: 'Total project cost' },
+              { field: 'requestedAmount', label: "Amount you're asking for" },
+              { field: 'communityContribution', label: 'Community contribution' },
+              { field: 'otherBudget', label: 'Other funding' },
+            ]}
+          />
+
+          <MoneyGroup
+            title="What the money pays for"
+            fields={[
+              { field: 'personnelBudget', label: 'Staff' },
+              { field: 'equipmentBudget', label: 'Equipment' },
+              { field: 'trainingBudget', label: 'Training' },
+              { field: 'marketingBudget', label: 'Promotion' },
+            ]}
+          />
 
           <div>
-            <Label className="mb-3 block">Budget Breakdown *</Label>
+            <Label className="mb-3 block">Cost breakdown</Label>
             <div className="border border-line rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-forest-tint">
                     <TableHead>Category</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead className="text-right">Amount ($)</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -171,7 +117,7 @@ export function BudgetSection() {
                         className="gap-2 text-forest"
                       >
                         <Plus className="w-4 h-4" />
-                        Add Row
+                        Add a row
                       </Button>
                     </TableCell>
                     <TableCell className="text-right">
@@ -185,58 +131,14 @@ export function BudgetSection() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-4 bg-forest-tint border border-[#C7DACD] rounded-lg">
-              <h3 className="text-forest-dark mb-3">Funding Breakdown</h3>
-              <div className="space-y-2 text-base">
-                <div className="flex justify-between">
-                  <span>Grant Requested:</span>
-                  <Input
-                    placeholder="$0"
-                    className="w-32 h-8 text-right bg-white"
-                    value={data.requestedAmount}
-                    onChange={(e) => updateField('requestedAmount', e.target.value)}
-                  />
-                </div>
-                <div className="flex justify-between">
-                  <span>Community Contribution:</span>
-                  <Input
-                    placeholder="$0"
-                    className="w-32 h-8 text-right bg-white"
-                    value={data.communityContribution}
-                    onChange={(e) => updateField('communityContribution', e.target.value)}
-                  />
-                </div>
-                <div className="flex justify-between">
-                  <span>Other Sources:</span>
-                  <Input
-                    placeholder="$0"
-                    className="w-32 h-8 text-right bg-white"
-                    value={data.otherBudget}
-                    onChange={(e) => updateField('otherBudget', e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-birch border border-line rounded-lg flex items-center justify-center text-ink-muted">
-              <div className="text-center">
-                <div className="w-32 h-32 mx-auto mb-2 bg-white rounded-full flex items-center justify-center border-4 border-[#C7DACD]">
-                  <DollarSign className="w-12 h-12 text-forest" />
-                </div>
-                <p className="text-[15px]">Pie chart visualization placeholder</p>
-              </div>
-            </div>
-          </div>
-
           <div>
-            <Label htmlFor="sustainability-plan">Sustainability Plan *</Label>
+            <Label htmlFor="sustainability-plan">After the grant ends</Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              How will the project continue after grant funding ends?
+              How the project keeps going: income it earns, partners, or other funding.
             </p>
             <Textarea
               id="sustainability-plan"
-              placeholder="Explain your plan for financial sustainability (e.g., revenue generation, ongoing partnerships, self-sustaining operations...)"
+              placeholder="For example: greenhouse sales cover heating costs from Year 3…"
               className="mt-2 min-h-[120px]"
               value={data.sustainabilityPlan}
               onChange={(e) => updateField('sustainabilityPlan', e.target.value)}
@@ -244,5 +146,38 @@ export function BudgetSection() {
           </div>
         </div>
       </div>
+  );
+}
+
+type MoneyField = 'totalBudget' | 'requestedAmount' | 'communityContribution' | 'otherBudget'
+  | 'personnelBudget' | 'equipmentBudget' | 'trainingBudget' | 'marketingBudget';
+
+interface MoneyGroupProps {
+  title: string;
+  fields: { field: MoneyField & keyof ProposalData; label: string }[];
+}
+
+/** A titled block of dollar amounts, two per row. */
+function MoneyGroup({ title, fields }: MoneyGroupProps) {
+  const { data, updateField } = useProposal();
+  return (
+    <section className="p-5 bg-white border border-line rounded-xl">
+      <h2 className="text-lg font-bold mb-4">{title}</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+        {fields.map(({ field, label }) => (
+          <div key={field}>
+            <Label htmlFor={`budget-${field}`} className="mb-1.5">{label}</Label>
+            <Input
+              id={`budget-${field}`}
+              inputMode="decimal"
+              placeholder="$0"
+              className="text-right"
+              value={data[field]}
+              onChange={(e) => updateField(field, e.target.value)}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

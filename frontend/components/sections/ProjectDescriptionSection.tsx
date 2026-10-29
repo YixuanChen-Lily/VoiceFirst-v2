@@ -15,9 +15,9 @@ export function ProjectDescriptionSection() {
 
         <div className="space-y-6">
           <div>
-            <Label className="mb-3 block">Project Objectives *</Label>
+            <Label className="mb-3 block">Goals</Label>
             <p className="text-base text-ink-muted mb-4">
-              List the main objectives of your project (SMART: Specific, Measurable, Achievable, Relevant, Time-bound)
+              Up to three goals. Make each one specific and measurable, with a date.
             </p>
             
             <div className="space-y-3">
@@ -26,7 +26,7 @@ export function ProjectDescriptionSection() {
                   1
                 </div>
                 <Input
-                  placeholder="Objective 1: e.g., Create 15 permanent jobs by Year 3"
+                  placeholder="Goal 1, for example: Create 15 permanent jobs by Year 3"
                   className="flex-1"
                   value={data.objective1}
                   onChange={(e) => updateField('objective1', e.target.value)}
@@ -38,7 +38,7 @@ export function ProjectDescriptionSection() {
                   2
                 </div>
                 <Input
-                  placeholder="Objective 2: e.g., Train 30 community members in artisan skills"
+                  placeholder="Goal 2, for example: Train 30 community members in artisan skills"
                   className="flex-1"
                   value={data.objective2}
                   onChange={(e) => updateField('objective2', e.target.value)}
@@ -50,7 +50,7 @@ export function ProjectDescriptionSection() {
                   3
                 </div>
                 <Input
-                  placeholder="Objective 3: e.g., Generate $200K annual revenue by Year 3"
+                  placeholder="Goal 3, for example: Generate $200K annual revenue by Year 3"
                   className="flex-1"
                   value={data.objective3}
                   onChange={(e) => updateField('objective3', e.target.value)}
@@ -60,9 +60,9 @@ export function ProjectDescriptionSection() {
           </div>
 
           <div className="border-t border-line pt-6">
-            <Label className="mb-3 block">Activities by Year</Label>
+            <Label className="mb-3 block">What you'll do each year</Label>
             <p className="text-base text-ink-muted mb-4">
-              Describe the key activities planned for each year
+              The main activities planned for each year.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

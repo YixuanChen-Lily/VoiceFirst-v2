@@ -14,9 +14,9 @@ export function AlignmentSection() {
 
         <div className="space-y-6">
           <div>
-            <Label htmlFor="community-alignment">Alignment with Community Plan *</Label>
+            <Label htmlFor="community-alignment">How it fits your community's plans</Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              How does this project support your community's strategic plan or vision?
+              Point to the goals in your community plan that this project supports.
             </p>
             <Textarea
               id="community-alignment"
@@ -28,9 +28,9 @@ export function AlignmentSection() {
           </div>
 
           <div>
-            <Label htmlFor="funder-alignment">Alignment with Funder Priorities *</Label>
+            <Label htmlFor="funder-alignment">How it fits the funder's priorities</Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              How does this project meet the funder's objectives and criteria?
+              Use the funder's own words where you can. Their guidelines usually list what they look for.
             </p>
             <Textarea
               id="funder-alignment"
@@ -42,9 +42,9 @@ export function AlignmentSection() {
           </div>
 
           <div className="p-4 bg-forest-tint border-l-4 border-forest rounded">
-            <Label htmlFor="long-term-sustainability" className="text-forest-dark">Long-Term Sustainability & Impact</Label>
+            <Label htmlFor="long-term-sustainability" >What lasts after the funding ends <span className="font-normal text-ink-muted">(optional)</span></Label>
             <p className="text-base text-ink-muted mt-1 mb-3">
-              What will be the lasting impact of this project?
+              The benefits that continue once this grant is spent.
             </p>
             <Textarea
               id="long-term-sustainability"
@@ -56,7 +56,7 @@ export function AlignmentSection() {
           </div>
 
           <div className="p-4 bg-ochre-tint border border-[#EBD3A8] rounded">
-            <h3 className="text-ochre-text mb-2">Tip: Strong Alignment Statements</h3>
+            <h3 className="text-ochre-text mb-2">Tips</h3>
             <ul className="text-base text-ink space-y-1 list-disc list-inside">
               <li>Reference specific goals from community and funder plans</li>
               <li>Use data to demonstrate need and potential impact</li>

@@ -22,13 +22,13 @@ export function ImplementationSection() {
 
         <div className="space-y-6">
           <div>
-            <Label htmlFor="governance">Governance Structure *</Label>
+            <Label htmlFor="governance">Who oversees the project</Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              Who will oversee the project? Board, committee, management team?
+              For example, a council committee, a board, or a project lead who reports to council.
             </p>
             <Textarea
               id="governance"
-              placeholder="Describe the governance structure, decision-making processes, and leadership..."
+              placeholder="Who makes decisions, and how…"
               className="mt-2 min-h-[120px]"
               value={data.governanceStructure}
               onChange={(e) => updateField('governanceStructure', e.target.value)}
@@ -36,16 +36,16 @@ export function ImplementationSection() {
           </div>
 
           <div>
-            <Label>Timeline</Label>
+            <Label>Milestones</Label>
             <p className="text-base text-ink-muted mt-1 mb-3">
-              Key milestones and timeline
+              The main things you'll finish, and when.
             </p>
             <div className="p-4 bg-birch rounded-lg border border-dashed border-line">
               <div className="space-y-3">
                 {data.milestones.map((milestone, index) => (
                   <div className="flex items-center gap-3" key={`milestone-${index}`}>
                     <Input
-                      placeholder="Milestone (e.g., Complete facility construction)"
+                      placeholder="Milestone, for example: Greenhouse built"
                       className="flex-1 bg-white"
                       value={milestone.name}
                       onChange={(e) => handleMilestoneChange(index, 'name', e.target.value)}
@@ -63,13 +63,13 @@ export function ImplementationSection() {
           </div>
 
           <div>
-            <Label htmlFor="responsibilities">Responsibilities</Label>
+            <Label htmlFor="responsibilities">Who does what <span className="font-normal text-ink-muted">(optional)</span></Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              Who leads what? Key roles and responsibilities
+              Key people or roles, and what each one is responsible for.
             </p>
             <Textarea
               id="responsibilities"
-              placeholder="List key team members and their roles (e.g., Project Manager: Sarah Johnson - oversees all operations...)"
+              placeholder="For example: Project lead – runs day-to-day work and reports to council…"
               className="mt-2 min-h-[100px]"
               value={data.implementationResponsibilities}
               onChange={(e) => updateField('implementationResponsibilities', e.target.value)}
@@ -77,13 +77,13 @@ export function ImplementationSection() {
           </div>
 
           <div>
-            <Label htmlFor="partnerships">Partnerships</Label>
+            <Label htmlFor="partnerships">Partners <span className="font-normal text-ink-muted">(optional)</span></Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              List key partners, collaborators, or supporting organizations
+              Organizations working with you or supporting the project.
             </p>
             <Textarea
               id="partnerships"
-              placeholder="e.g., Tourism Association, Local College (training partner), Economic Development Corporation..."
+              placeholder="For example: the school, the health centre, a regional college…"
               className="mt-2 min-h-[80px]"
               value={data.implementationPartnerships}
               onChange={(e) => updateField('implementationPartnerships', e.target.value)}
@@ -91,9 +91,9 @@ export function ImplementationSection() {
           </div>
 
           <div className="p-4 bg-ochre-tint border-l-4 border-ochre rounded">
-            <Label htmlFor="risk-mitigation" className="text-ochre-text">Risk Mitigation (Brief Overview)</Label>
+            <Label htmlFor="risk-mitigation" className="text-ochre-text">Main risks, in brief <span className="font-normal text-ink-muted">(optional)</span></Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              What could go wrong and how will you address it? (Detailed in Section 10)
+              A short version. You'll go into detail in the Risks step.
             </p>
             <Textarea
               id="risk-mitigation"

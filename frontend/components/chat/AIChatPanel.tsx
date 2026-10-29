@@ -152,62 +152,62 @@ const SECTION_FIELD_CONFIG: Record<number, { fields: ProposalFieldKey[]; fallbac
 };
 
 const FIELD_LABELS: Partial<Record<ProposalFieldKey, string>> = {
-  projectTitle: 'Project Title',
-  organizationName: 'Organization Name',
-  submissionDate: 'Submission Date',
-  contactName: 'Contact Name',
-  contactPhone: 'Contact Phone',
-  contactEmail: 'Contact Email',
-  contactAddress: 'Contact Address',
-  fundedBy: 'Funding Source',
-  executiveSummary: 'Executive Summary',
-  communityName: 'Community Name',
+  projectTitle: 'Project name',
+  organizationName: 'Organization applying',
+  submissionDate: 'Date you\'ll submit',
+  contactName: 'Contact name',
+  contactPhone: 'Contact phone',
+  contactEmail: 'Contact email',
+  contactAddress: 'Mailing address',
+  fundedBy: 'Funder or program',
+  executiveSummary: 'Summary',
+  communityName: 'Community name',
   population: 'Population',
-  communityBackground: 'Community Background',
-  economicBaseline: 'Economic Baseline',
-  culturalContext: 'Cultural Context',
-  needsChallenges: 'Needs & Challenges',
-  problemDescription: 'Problem Statement',
-  supportingEvidence: 'Supporting Evidence',
-  objective1: 'Objective 1',
-  objective2: 'Objective 2',
-  objective3: 'Objective 3',
-  year1Activities: 'Year 1 Activities',
-  year2Activities: 'Year 2 Activities',
-  year3Activities: 'Year 3 Activities',
-  governanceStructure: 'Governance Structure',
-  implementationResponsibilities: 'Implementation Responsibilities',
-  implementationPartnerships: 'Implementation Partnerships',
-  implementationRiskOverview: 'Implementation Risk Overview',
-  totalBudget: 'Total Project Cost',
-  requestedAmount: 'Grant Requested',
-  communityContribution: 'Community Contribution',
-  personnelBudget: 'Personnel Budget',
-  equipmentBudget: 'Equipment Budget',
-  trainingBudget: 'Training Budget',
-  marketingBudget: 'Marketing Budget',
-  otherBudget: 'Other Costs',
-  sustainabilityPlan: 'Sustainability Plan',
-  expectedOutcomes: 'Expected Outcomes',
-  successIndicators: 'Success Indicators',
-  dataCollectionPlan: 'Data Collection Plan',
-  evaluationPlan: 'Evaluation Plan',
-  communityAlignment: 'Community Alignment',
-  funderAlignment: 'Funder Alignment',
-  longTermSustainability: 'Long-Term Sustainability',
+  communityBackground: 'About your community',
+  economicBaseline: 'Local economy',
+  culturalContext: 'Culture and land',
+  needsChallenges: 'Challenges the community faces',
+  problemDescription: 'The problem or opportunity',
+  supportingEvidence: 'Evidence',
+  objective1: 'Goal 1',
+  objective2: 'Goal 2',
+  objective3: 'Goal 3',
+  year1Activities: 'Year 1 activities',
+  year2Activities: 'Year 2 activities',
+  year3Activities: 'Year 3 activities',
+  governanceStructure: 'Who oversees the project',
+  implementationResponsibilities: 'Who does what',
+  implementationPartnerships: 'Partners',
+  implementationRiskOverview: 'Main risks, in brief',
+  totalBudget: 'Total project cost',
+  requestedAmount: 'Amount you\'re asking for',
+  communityContribution: 'Community contribution',
+  personnelBudget: 'Staff costs',
+  equipmentBudget: 'Equipment costs',
+  trainingBudget: 'Training costs',
+  marketingBudget: 'Promotion costs',
+  otherBudget: 'Other funding',
+  sustainabilityPlan: 'After the grant ends',
+  expectedOutcomes: 'What will change',
+  successIndicators: 'How you\'ll know it worked',
+  dataCollectionPlan: 'How you\'ll gather information',
+  evaluationPlan: 'How you\'ll review progress',
+  communityAlignment: 'How it fits your community\'s plans',
+  funderAlignment: 'How it fits the funder\'s priorities',
+  longTermSustainability: 'What lasts after the funding ends',
   alignmentDescription: 'Alignment Summary',
-  risksMitigation: 'Risk Mitigation Strategy',
+  risksMitigation: 'Risks summary',
 };
 
 const QUICK_START_SECTION_NAMES: Partial<Record<ProposalFieldKey, string>> = {
-  projectTitle: 'Cover Page',
-  organizationName: 'Cover Page',
-  executiveSummary: 'Executive Summary',
-  communityBackground: 'Community Context',
-  needsChallenges: 'Community Context',
-  problemDescription: 'Problem Statement',
-  expectedOutcomes: 'Expected Outcomes',
-  objective1: 'Project Description',
+  projectTitle: STEP_NAMES[1],
+  organizationName: STEP_NAMES[1],
+  executiveSummary: STEP_NAMES[2],
+  communityBackground: STEP_NAMES[3],
+  needsChallenges: STEP_NAMES[3],
+  problemDescription: STEP_NAMES[4],
+  objective1: STEP_NAMES[5],
+  expectedOutcomes: STEP_NAMES[8],
 };
 
 export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AIChatPanelProps) {
@@ -263,19 +263,19 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
 
   const getSectionGuidance = useCallback((section: number): string => {
     const guidance: { [key: number]: string } = {
-      1: "For the Cover Page, I need: project title, organization name, contact information, and submission date. You can speak or type these details.",
-      2: "The Executive Summary should be 150-250 words covering who you are, what you're proposing, why it's needed, expected outcomes, and your funding request. Want to draft this together?",
-      3: "Let's establish your Community Context. Tell me about your community's background, population, strengths, and cultural significance.",
-      4: "For the Problem Statement, describe the specific challenge or opportunity you're addressing. Include any supporting data or community feedback you have.",
-      5: "Now for Project Description - let's define your SMART objectives and activities for each year. What are your main goals?",
-      6: "The Implementation Plan needs a timeline with specific milestones and deliverables. When do you plan to start, and what are the key phases?",
-      7: "For the Budget, I'll help you break down costs into categories: personnel, equipment, training, marketing, and other expenses. What's your total project budget?",
-      8: "Expected Outcomes should include measurable results and long-term community impact. How will you measure success?",
-      9: "Let's align your project with the funder's priorities. Do you have the funding guidelines? I can help match your project to their goals.",
-      10: "For Risk Management, identify potential challenges and your mitigation strategies. What concerns do you have about project implementation?",
-      11: "Finally, let's review what supporting documents you have: letters of support, community plans, detailed budgets, etc. What can you attach?"
+      1: "For the cover page I need the project name, your organization, a contact person, and the date you'll submit. You can say them or type them.",
+      2: "The summary is one short paragraph: what you'll do, why it matters, how, what will change, and how much you're asking for. Want to write it together?",
+      3: "Tell me about your community: where it is, who lives there, and what daily life is like.",
+      4: "What problem does your project solve, or what opportunity does it open up? Any numbers or survey results help.",
+      5: "Let's set your goals. What are the main things you want this project to achieve, and by when?",
+      6: "Who will oversee the project, and what are the main milestones? When do you plan to start?",
+      7: "Let's work out the budget. What's the total cost, and how much are you asking this funder for?",
+      8: "How will you know the project worked? Think of things you can count, like jobs created or people trained.",
+      9: "Do you have the funder's guidelines? I can help show how your project fits what they're looking for.",
+      10: "What could go wrong, and what would you do about it? Delays, staffing and costs are common ones.",
+      11: "Last step: what documents can you attach? Letters of support, community plans and budgets are common."
     };
-    return guidance[section] || "How can I help with this section?";
+    return guidance[section] || "How can I help with this step?";
   }, []);
 
   useEffect(() => {
@@ -286,7 +286,7 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
     const sectionMessage: Message = {
       id: `${Date.now()}-section`,
       type: 'system',
-      content: `📍 Now working on: ${sectionName}`,
+      content: `Now on: ${STEP_NAMES[currentSection]}`,
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, sectionMessage]);
@@ -400,13 +400,13 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
           ),
         );
         const sectionSummary =
-          sectionNames.length > 0 ? sectionNames.join(', ') : 'multiple sections';
-        actionText = `Quick-start drafted updates for ${sectionSummary}. Apply these AI-generated details to jumpstart your proposal?`;
+          sectionNames.length > 0 ? sectionNames.join(', ') : 'several steps';
+        actionText = `I drafted a start for: ${sectionSummary}.`;
       } else {
         actionText =
           updatedLabels.length === 1
-            ? `The assistant drafted an update for ${labelSummary}.`
-            : `The assistant drafted updates for ${labelSummary}.`;
+            ? `I drafted this for ${labelSummary}.`
+            : `I drafted these for ${labelSummary}.`;
       }
 
       const actionMessage: Message = {
@@ -436,8 +436,8 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
         type: 'system',
         content:
           pending.labels.length === 1
-            ? `✅ Applied ${pending.labels[0]}.`
-            : `✅ Applied updates to: ${pending.labels.join(', ')}.`,
+            ? `Added to your proposal: ${pending.labels[0]}.`
+            : `Added to your proposal: ${pending.labels.join(', ')}.`,
         timestamp: new Date(),
       };
 
@@ -448,7 +448,7 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
         followUps.push({
           id: `${appliedAt + 1}-quickstart-complete`,
           type: 'system',
-          content: '🚀 Quick start complete! Head to Section 1 (Cover Page) to review and fine-tune the draft details.',
+          content: 'Good start. Next, open "Cover page" to check the details.',
           timestamp: new Date(),
         });
       }
@@ -469,8 +469,8 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
         type: 'system',
         content:
           pending.labels.length === 1
-            ? `⏭️ Skipped auto-fill for ${pending.labels[0]}.`
-            : `⏭️ Skipped auto-fill for: ${pending.labels.join(', ')}.`,
+            ? `Not added: ${pending.labels[0]}.`
+            : `Not added: ${pending.labels.join(', ')}.`,
         timestamp: new Date(),
       };
 
@@ -481,7 +481,7 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
         followUps.push({
           id: `${skippedAt + 1}-quickstart-skip`,
           type: 'system',
-          content: 'No worries—when you are ready, you can start with Section 1 (Cover Page) and fill in the details manually.',
+          content: 'No problem. When you\'re ready, start with "Cover page" and fill in the details yourself.',
           timestamp: new Date(),
         });
       }
@@ -724,7 +724,7 @@ export function AIChatPanel({ currentSection, onClose, hasExistingDraft }: AICha
     const systemMessage: Message = {
       id: `${Date.now()}-upload`,
       type: 'system',
-      content: '📎 Document uploaded and queued for analysis. I will incorporate its insights shortly.',
+      content: 'Got your document. I\'ll use it once it\'s ready.',
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, systemMessage]);

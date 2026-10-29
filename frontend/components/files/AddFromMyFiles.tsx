@@ -41,26 +41,26 @@ export function AddFromMyFiles({ actions, options }: AddFromMyFilesProps) {
   }
 
   return (
-    <div className="p-3 bg-white rounded border border-stone-200 space-y-2">
+    <div className="p-3 bg-white rounded-xl border border-line space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-stone-700">Files you uploaded before</p>
+        <p className="text-base font-bold text-ink">Files you uploaded before</p>
         <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
           Close
         </Button>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {myFiles === null && !error && <p className="text-sm text-stone-500">Loading…</p>}
+      {error && <p className="text-base text-[#A4462E]">{error}</p>}
+      {myFiles === null && !error && <p className="text-base text-ink-muted">Loading…</p>}
       {myFiles !== null && available.length === 0 && (
-        <p className="text-sm text-stone-500">
+        <p className="text-base text-ink-muted">
           {myFiles.length === 0 ? 'You have no files yet.' : 'All your files are already in this proposal.'}
         </p>
       )}
       <ul className="space-y-1">
         {available.map((file) => (
           <li key={file.id} className="flex items-center justify-between gap-2 text-sm">
-            <span className="truncate text-stone-800">
+            <span className="truncate text-ink">
               {file.filename}
-              <span className="text-xs text-stone-500">
+              <span className="text-sm text-ink-muted">
                 {' '}
                 · {formatSize(file.size_bytes)} · added {formatDate(file.created_at)}
               </span>

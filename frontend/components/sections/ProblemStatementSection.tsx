@@ -14,13 +14,13 @@ export function ProblemStatementSection() {
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="problem-statement">Problem / Opportunity Statement *</Label>
+            <Label htmlFor="problem-statement">The problem or opportunity</Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              What problem does your project solve? What opportunity does it create?
+              What problem does your project solve, or what opportunity does it open up?
             </p>
             <Textarea
               id="problem-statement"
-              placeholder="Explain the problem your project addresses and the opportunity it unlocks..."
+              placeholder="Describe the problem or opportunity in your own words…"
               className="mt-2 min-h-[180px]"
               value={data.problemDescription}
               onChange={(e) => updateField('problemDescription', e.target.value)}
@@ -28,13 +28,13 @@ export function ProblemStatementSection() {
           </div>
 
           <div>
-            <Label htmlFor="supporting-evidence">Supporting Evidence</Label>
+            <Label htmlFor="supporting-evidence">Evidence <span className="font-normal text-ink-muted">(optional)</span></Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              Reference data, community feedback, or research that supports the need for this project.
+              Numbers, survey results, or what community members have said.
             </p>
             <Textarea
               id="supporting-evidence"
-              placeholder="Include key statistics, consultation findings, or testimonials..."
+              placeholder="For example: 41% of households skip meals at least once a week (2025 food survey)."
               className="mt-2 min-h-[160px]"
               value={data.supportingEvidence}
               onChange={(e) => updateField('supportingEvidence', e.target.value)}

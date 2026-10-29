@@ -14,9 +14,9 @@ export function ExecutiveSummarySection() {
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="executive-summary">Executive Summary *</Label>
+            <Label htmlFor="executive-summary">Summary</Label>
             <p className="text-base text-ink-muted mt-1 mb-2">
-              Summarize: what you're doing, why it matters, how you'll do it, expected outcomes, and funding requested
+              In a paragraph: what you'll do, why it matters, how, what will change, and how much you're asking for.
             </p>
             <Textarea
               id="executive-summary"
