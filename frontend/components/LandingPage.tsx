@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { FolderOpen, Library } from 'lucide-react';
 import { AppMark } from './brand/AppMark';
 import { MyProposals } from './proposals/MyProposals';
+import { PAGE_FRAME, PAGE_HEADER, PAGE_TOP } from './layout/pageFrame';
 import type { SavedProposal } from '../lib/api';
 
 interface LandingPageProps {
@@ -40,7 +41,7 @@ export function LandingPage({ onStartFromScratch, onUploadDraft, onOpenLibrary, 
 
   return (
     <div className="min-h-screen bg-birch text-ink font-readable text-lg leading-relaxed">
-      <header className="max-w-6xl mx-auto px-6 sm:px-8 py-6 flex flex-wrap items-center justify-between gap-4">
+      <header className={PAGE_HEADER}>
         <div className="flex items-center gap-3">
           <AppMark />
           <span className="text-lg font-bold">Community Grant Assistant</span>
@@ -57,8 +58,8 @@ export function LandingPage({ onStartFromScratch, onUploadDraft, onOpenLibrary, 
         </nav>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 sm:px-8 pb-16 flex flex-col gap-14">
-        <section className="pt-10 sm:pt-14 max-w-3xl">
+      <main className={`${PAGE_FRAME} pb-16 flex flex-col gap-14`}>
+        <section className={`${PAGE_TOP} max-w-3xl`}>
           <h1 className="text-4xl sm:text-5xl font-bold leading-tight tracking-tight mb-4">
             Build your funding proposal by talking it through
           </h1>

@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 
 import { AppMark } from '../brand/AppMark';
+import { PAGE_FRAME, PAGE_HEADER, PAGE_TOP } from './pageFrame';
 
 interface SubPageProps {
   title: string;
@@ -14,7 +15,7 @@ interface SubPageProps {
 export function SubPage({ title, description, onBack, children }: SubPageProps) {
   return (
     <div className="min-h-screen bg-birch text-ink font-readable">
-      <header className="max-w-5xl mx-auto px-6 sm:px-8 py-6 flex flex-wrap items-center justify-between gap-4">
+      <header className={PAGE_HEADER}>
         <button
           type="button"
           onClick={onBack}
@@ -34,7 +35,7 @@ export function SubPage({ title, description, onBack, children }: SubPageProps) 
         </button>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 sm:px-8 pt-6 pb-16">
+      <main className={`${PAGE_FRAME} ${PAGE_TOP} pb-16`}>
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">{title}</h1>
         <p className="text-lg text-ink-muted mb-8 max-w-3xl">{description}</p>
         {children}
