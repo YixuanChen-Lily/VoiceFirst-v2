@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { SectionHeader } from './SectionHeader';
 import { STEP_NAMES } from '../../lib/proposalSteps';
 import { Input } from '../ui/input';
@@ -7,32 +7,22 @@ import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { Plus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { useProposal, type ProposalData } from '../../context/ProposalContext';
+import { useProposal, type BudgetLine, type ProposalData } from '../../context/ProposalContext';
 
-interface BudgetItem {
-  category: string;
-  description: string;
-  amount: string;
-}
 
 export function BudgetSection() {
   const { data, updateField } = useProposal();
-  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([
-    { category: 'Capital', description: '', amount: '' },
-    { category: 'Operations', description: '', amount: '' },
-    { category: 'Training', description: '', amount: '' },
-    { category: 'Marketing', description: '', amount: '' },
-    { category: 'Contingency', description: '', amount: '' },
-  ]);
+  const budgetItems = data.budgetLines;
 
   const addBudgetRow = () => {
-    setBudgetItems([...budgetItems, { category: '', description: '', amount: '' }]);
+    updateField('budgetLines', [...budgetItems, { category: '', description: '', amount: '' }]);
   };
 
-  const updateBudgetItem = (index: number, field: keyof BudgetItem, value: string) => {
-    const newItems = [...budgetItems];
-    newItems[index][field] = value;
-    setBudgetItems(newItems);
+  const updateBudgetItem = (index: number, key: keyof BudgetLine, value: string) => {
+    updateField(
+      'budgetLines',
+      budgetItems.map((row, i) => (i === index ? { ...row, [key]: value } : row)),
+    );
   };
 
   const calculateTotal = () => {

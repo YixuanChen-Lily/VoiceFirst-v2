@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { SectionHeader } from './SectionHeader';
 import { STEP_NAMES } from '../../lib/proposalSteps';
 import { Textarea } from '../ui/textarea';
@@ -8,15 +8,21 @@ import { Button } from '../ui/button';
 import { Upload, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { useProposal } from '../../context/ProposalContext';
+import { ProposalFileList } from '../files/ProposalFileList';
+import { useProposalFiles } from '../files/useProposalFiles';
+
+/** Files added here are labelled so they also show under "Community plans and research" in Your files. */
+const COMMUNITY_PLAN_LABEL = 'Community plan';
 
 export function CommunityContextSection() {
-  const [fileName, setFileName] = useState<string | null>(null);
   const { data, updateField } = useProposal();
+  const files = useProposalFiles();
+  const plans = files.files.filter((file) => file.label === COMMUNITY_PLAN_LABEL);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFileName(e.target.files[0].name);
-    }
+    const file = e.target.files?.[0];
+    if (file) files.upload(file, { role: 'background', label: COMMUNITY_PLAN_LABEL });
+    e.target.value = '';
   };
 
   return (
@@ -106,26 +112,33 @@ export function CommunityContextSection() {
           <div className="p-4 bg-birch border border-dashed border-line rounded">
             <Label>Community plan <span className="font-normal text-ink-muted">(optional)</span></Label>
             <p className="text-base text-ink-muted mt-1 mb-3">
-              If you have a community plan, add it here.
+              If you have a community plan, add it here. The assistant reads it while you write, and it also
+              appears under Your files.
             </p>
             <div className="flex items-center gap-4">
               <Button variant="outline" className="gap-2" asChild>
                 <label htmlFor="strategic-plan" className="cursor-pointer">
                   <Upload className="w-4 h-4" />
-                  Choose File
+                  Choose a file
                   <input
                     id="strategic-plan"
                     type="file"
                     className="hidden"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf,.docx,.txt,.md"
                     onChange={handleFileChange}
                   />
                 </label>
               </Button>
-              {fileName && (
-                <span className="text-base text-forest">✓ {fileName}</span>
-              )}
+              {files.isAdding && <span className="text-base text-ink-muted">Uploading…</span>}
             </div>
+            {files.error && (
+              <p role="alert" className="mt-3 text-base text-[#A4462E]">{files.error}</p>
+            )}
+            {plans.length > 0 && (
+              <div className="mt-4">
+                <ProposalFileList files={plans} actions={files} emptyText="" />
+              </div>
+            )}
           </div>
         </div>
       </div>

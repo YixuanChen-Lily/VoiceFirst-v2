@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { SectionHeader } from './SectionHeader';
 import { STEP_NAMES } from '../../lib/proposalSteps';
 import { Input } from '../ui/input';
@@ -8,30 +8,22 @@ import { Plus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
-import { useProposal } from '../../context/ProposalContext';
+import { useProposal, type RiskRow } from '../../context/ProposalContext';
 
-interface Risk {
-  risk: string;
-  likelihood: string;
-  mitigation: string;
-}
 
 export function RiskManagementSection() {
   const { data, updateField } = useProposal();
-  const [risks, setRisks] = useState<Risk[]>([
-    { risk: '', likelihood: '', mitigation: '' },
-    { risk: '', likelihood: '', mitigation: '' },
-    { risk: '', likelihood: '', mitigation: '' },
-  ]);
+  const risks = data.riskRows;
 
   const addRiskRow = () => {
-    setRisks([...risks, { risk: '', likelihood: '', mitigation: '' }]);
+    updateField('riskRows', [...risks, { risk: '', likelihood: '', mitigation: '' }]);
   };
 
-  const updateRisk = (index: number, field: keyof Risk, value: string) => {
-    const newRisks = [...risks];
-    newRisks[index][field] = value;
-    setRisks(newRisks);
+  const updateRisk = (index: number, key: keyof RiskRow, value: string) => {
+    updateField(
+      'riskRows',
+      risks.map((row, i) => (i === index ? { ...row, [key]: value } : row)),
+    );
   };
 
   return (
@@ -99,7 +91,7 @@ export function RiskManagementSection() {
                         className="gap-2 text-ochre-text"
                       >
                         <Plus className="w-4 h-4" />
-                        Add Risk
+                        Add a row
                       </Button>
                     </TableCell>
                   </TableRow>
