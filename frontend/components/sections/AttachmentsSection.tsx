@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
+import { STEP_NAMES } from '../../lib/proposalSteps';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
 import { Label } from '../ui/label';
-import { Paperclip, Upload, Plus, CheckCircle2 } from 'lucide-react';
+import { Upload, Plus, CheckCircle2 } from 'lucide-react';
 import { useProposal } from '../../context/ProposalContext';
 import { AddFromMyFiles } from '../files/AddFromMyFiles';
 import { ProposalFileList } from '../files/ProposalFileList';
@@ -39,19 +39,13 @@ export function AttachmentsSection() {
   };
 
   return (
-    <Card className="border-2 border-emerald-200 shadow-lg">
-      <CardContent className="p-8">
-        <SectionHeader
-          number={11}
-          title="Attachments / Supporting Documents"
-          icon={Paperclip}
-          description="Upload supporting documents to strengthen your proposal"
-        />
+    <div>
+        <SectionHeader title={STEP_NAMES[11]} description="Letters, plans and other documents that back up your proposal." />
 
         <div className="space-y-6">
           <div
-            className={`p-6 border-2 border-dashed rounded-lg transition-colors ${
-              dragActive ? 'border-emerald-500 bg-emerald-50' : 'bg-stone-50 border-stone-300'
+            className={`p-6 border border-dashed rounded-lg transition-colors ${
+              dragActive ? 'border-forest bg-forest-tint' : 'bg-birch border-line'
             }`}
             onDragOver={(event) => {
               event.preventDefault();
@@ -65,13 +59,13 @@ export function AttachmentsSection() {
             }}
           >
             <div className="text-center mb-4">
-              <Upload className="w-12 h-12 mx-auto mb-3 text-stone-400" />
-              <h3 className="text-stone-700 mb-2">Drag & Drop Files Here</h3>
-              <p className="text-sm text-stone-500 mb-4">or upload each recommended document below</p>
+              <Upload className="w-12 h-12 mx-auto mb-3 text-[#8C867E]" />
+              <h3 className="text-ink mb-2">Drag & Drop Files Here</h3>
+              <p className="text-base text-ink-muted mb-4">or upload each recommended document below</p>
             </div>
 
             <div className="space-y-3">
-              <h4 className="text-sm text-stone-600 mb-3">📋 Recommended Documents Checklist:</h4>
+              <h4 className="text-base text-ink-muted mb-3">Recommended Documents Checklist:</h4>
 
               <div className="space-y-3">
                 {RECOMMENDED.map(({ key, label }) => {
@@ -79,7 +73,7 @@ export function AttachmentsSection() {
                   return (
                     <div
                       key={key}
-                      className="flex items-center justify-between p-3 bg-white rounded border border-stone-200"
+                      className="flex items-center justify-between p-3 bg-white rounded border border-line"
                     >
                       <div className="flex items-center gap-3">
                         <Checkbox
@@ -92,7 +86,7 @@ export function AttachmentsSection() {
                           {label}
                         </Label>
                         {uploaded && (
-                          <span className="flex items-center gap-1 text-xs text-emerald-700">
+                          <span className="flex items-center gap-1 text-[15px] text-forest">
                             <CheckCircle2 className="w-3 h-3" />
                             Uploaded
                           </span>
@@ -118,7 +112,7 @@ export function AttachmentsSection() {
                 })}
               </div>
 
-              <div className="pt-3 border-t border-stone-200 flex flex-wrap gap-2">
+              <div className="pt-3 border-t border-line flex flex-wrap gap-2">
                 <Button variant="outline" className="flex-1 gap-2" asChild>
                   <label className="cursor-pointer">
                     <Plus className="w-4 h-4" />
@@ -140,17 +134,17 @@ export function AttachmentsSection() {
           </div>
 
           {files.error && (
-            <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+            <p role="alert" className="text-base text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
               {files.error}
             </p>
           )}
 
           {(attachments.length > 0 || files.isAdding) && (
-            <div className="p-4 bg-emerald-50 border-2 border-emerald-200 rounded-lg">
-              <h4 className="text-emerald-900 mb-1">
+            <div className="p-4 bg-forest-tint border border-[#C7DACD] rounded-lg">
+              <h4 className="text-forest-dark mb-1">
                 📎 Uploaded Files ({attachments.length}){files.isAdding ? ' · uploading…' : ''}
               </h4>
-              <p className="text-xs text-stone-600 mb-3">
+              <p className="text-[15px] text-ink-muted mb-3">
                 Saved with this proposal. The assistant knows each file's name; tick the box to let it read the file
                 too, for example a budget it should check your numbers against.
               </p>
@@ -158,9 +152,9 @@ export function AttachmentsSection() {
             </div>
           )}
 
-          <div className="p-4 bg-amber-50 border-l-4 border-amber-400 rounded">
-            <h4 className="text-amber-900 mb-2">💡 Tips for Strong Supporting Documents</h4>
-            <ul className="text-sm text-stone-700 space-y-1 list-disc list-inside">
+          <div className="p-4 bg-ochre-tint border-l-4 border-ochre rounded">
+            <h4 className="text-ochre-text mb-2">Tips for Strong Supporting Documents</h4>
+            <ul className="text-base text-ink space-y-1 list-disc list-inside">
               <li>Ensure all documents are clearly labeled and up to date</li>
               <li>Letters of support should be on official letterhead</li>
               <li>Include only relevant attachments that strengthen your proposal</li>
@@ -169,7 +163,6 @@ export function AttachmentsSection() {
             </ul>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
   );
 }

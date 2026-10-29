@@ -1,28 +1,21 @@
 import React from 'react';
-import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
+import { STEP_NAMES } from '../../lib/proposalSteps';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
-import { Target } from 'lucide-react';
 import { useProposal } from '../../context/ProposalContext';
 
 export function AlignmentSection() {
   const { data, updateField } = useProposal();
 
   return (
-    <Card className="border-2 border-emerald-200 shadow-lg">
-      <CardContent className="p-8">
-        <SectionHeader
-          number={9}
-          title="Alignment & Sustainability"
-          icon={Target}
-          description="How does this project align with broader plans and priorities?"
-        />
+    <div>
+        <SectionHeader title={STEP_NAMES[9]} description="How the project fits the funder's priorities and your community's plans." />
 
         <div className="space-y-6">
           <div>
             <Label htmlFor="community-alignment">Alignment with Community Plan *</Label>
-            <p className="text-sm text-stone-600 mt-1 mb-2">
+            <p className="text-base text-ink-muted mt-1 mb-2">
               How does this project support your community's strategic plan or vision?
             </p>
             <Textarea
@@ -36,7 +29,7 @@ export function AlignmentSection() {
 
           <div>
             <Label htmlFor="funder-alignment">Alignment with Funder Priorities *</Label>
-            <p className="text-sm text-stone-600 mt-1 mb-2">
+            <p className="text-base text-ink-muted mt-1 mb-2">
               How does this project meet the funder's objectives and criteria?
             </p>
             <Textarea
@@ -48,9 +41,9 @@ export function AlignmentSection() {
             />
           </div>
 
-          <div className="p-4 bg-sky-50 border-l-4 border-sky-400 rounded">
-            <Label htmlFor="long-term-sustainability" className="text-sky-900">Long-Term Sustainability & Impact</Label>
-            <p className="text-sm text-stone-600 mt-1 mb-3">
+          <div className="p-4 bg-forest-tint border-l-4 border-forest rounded">
+            <Label htmlFor="long-term-sustainability" className="text-forest-dark">Long-Term Sustainability & Impact</Label>
+            <p className="text-base text-ink-muted mt-1 mb-3">
               What will be the lasting impact of this project?
             </p>
             <Textarea
@@ -62,9 +55,9 @@ export function AlignmentSection() {
             />
           </div>
 
-          <div className="p-4 bg-amber-50 border-2 border-amber-200 rounded">
-            <h3 className="text-amber-900 mb-2">💡 Tip: Strong Alignment Statements</h3>
-            <ul className="text-sm text-stone-700 space-y-1 list-disc list-inside">
+          <div className="p-4 bg-ochre-tint border border-[#EBD3A8] rounded">
+            <h3 className="text-ochre-text mb-2">Tip: Strong Alignment Statements</h3>
+            <ul className="text-base text-ink space-y-1 list-disc list-inside">
               <li>Reference specific goals from community and funder plans</li>
               <li>Use data to demonstrate need and potential impact</li>
               <li>Show how multiple priorities are addressed</li>
@@ -73,7 +66,6 @@ export function AlignmentSection() {
             </ul>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
   );
 }

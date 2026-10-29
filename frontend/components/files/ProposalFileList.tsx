@@ -16,10 +16,10 @@ interface ProposalFileListProps {
 /** What the assistant can do with a file in this proposal, in plain words. */
 function accessText(file: ProposalFile): { text: string; tone: string } {
   if (file.use_in_chat && file.status === 'ready') {
-    return { text: 'The assistant can read this file.', tone: 'text-emerald-700' };
+    return { text: 'The assistant can read this file.', tone: 'text-forest' };
   }
   if (file.use_in_chat && file.status === 'processing') {
-    return { text: 'Preparing for the assistant…', tone: 'text-amber-700' };
+    return { text: 'Preparing for the assistant…', tone: 'text-ochre-text' };
   }
   if (file.use_in_chat) {
     return {
@@ -28,12 +28,12 @@ function accessText(file: ProposalFile): { text: string; tone: string } {
     };
   }
   if (file.error) return { text: file.error, tone: 'text-red-700' };
-  return { text: 'Stored with the proposal. The assistant only knows its name.', tone: 'text-stone-500' };
+  return { text: 'Stored with the proposal. The assistant only knows its name.', tone: 'text-ink-muted' };
 }
 
 export function ProposalFileList({ files, actions, emptyText }: ProposalFileListProps) {
   if (files.length === 0) {
-    return <p className="text-sm text-stone-500">{emptyText}</p>;
+    return <p className="text-base text-ink-muted">{emptyText}</p>;
   }
 
   return (
@@ -43,16 +43,16 @@ export function ProposalFileList({ files, actions, emptyText }: ProposalFileList
         const access = accessText(file);
         const switchId = `use-in-chat-${file.document_id}`;
         return (
-          <li key={file.document_id} className="p-3 bg-white rounded border border-stone-200">
+          <li key={file.document_id} className="p-3 bg-white rounded border border-line">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-2 min-w-0">
-                <FileText className="w-4 h-4 mt-0.5 flex-shrink-0 text-emerald-600" />
+                <FileText className="w-4 h-4 mt-0.5 flex-shrink-0 text-forest" />
                 <div className="min-w-0">
-                  {file.label && <p className="text-sm text-stone-900">{file.label}</p>}
-                  <p className={`truncate ${file.label ? 'text-xs text-stone-500' : 'text-sm text-stone-900'}`}>
+                  {file.label && <p className="text-base text-ink">{file.label}</p>}
+                  <p className={`truncate ${file.label ? 'text-[15px] text-ink-muted' : 'text-base text-ink'}`}>
                     {file.filename} · {formatSize(file.size_bytes)}
                   </p>
-                  <p className={`text-xs mt-1 ${access.tone}`}>{access.text}</p>
+                  <p className={`text-[15px] mt-1 ${access.tone}`}>{access.text}</p>
                 </div>
               </div>
               <Button
@@ -75,7 +75,7 @@ export function ProposalFileList({ files, actions, emptyText }: ProposalFileList
                   disabled={busy}
                   onCheckedChange={(checked) => actions.setUseInChat(file.document_id, checked === true)}
                 />
-                <label htmlFor={switchId} className="text-xs text-stone-700 cursor-pointer">
+                <label htmlFor={switchId} className="text-[15px] text-ink cursor-pointer">
                   Let the assistant use this file
                 </label>
               </div>

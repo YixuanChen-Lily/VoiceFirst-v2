@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Card, CardContent } from '../ui/card';
 import { SectionHeader } from './SectionHeader';
+import { STEP_NAMES } from '../../lib/proposalSteps';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
-import { TrendingUp, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { useProposal } from '../../context/ProposalContext';
 
@@ -35,20 +35,14 @@ export function OutcomesSection() {
   };
 
   return (
-    <Card className="border-2 border-sky-200 shadow-lg">
-      <CardContent className="p-8">
-        <SectionHeader
-          number={8}
-          title="Outcomes, Indicators & Evaluation"
-          icon={TrendingUp}
-          description="How will you measure success and evaluate progress?"
-        />
+    <div>
+        <SectionHeader title={STEP_NAMES[8]} description="How you'll know the project worked." />
 
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="expected-outcomes">Expected Outcomes *</Label>
-              <p className="text-sm text-stone-600 mt-1 mb-2">
+              <p className="text-base text-ink-muted mt-1 mb-2">
                 Summarize the major results you anticipate achieving through this project.
               </p>
               <Textarea
@@ -61,7 +55,7 @@ export function OutcomesSection() {
             </div>
             <div>
               <Label htmlFor="success-indicators">Success Indicators *</Label>
-              <p className="text-sm text-stone-600 mt-1 mb-2">
+              <p className="text-base text-ink-muted mt-1 mb-2">
                 List the high-level indicators you will use to demonstrate success.
               </p>
               <Textarea
@@ -77,16 +71,16 @@ export function OutcomesSection() {
           <div>
             <div className="flex items-center gap-2 mb-3">
               <Label>Performance Indicators *</Label>
-              <span className="text-xs text-stone-500">📈</span>
+              <span className="text-[15px] text-ink-muted"></span>
             </div>
-            <p className="text-sm text-stone-600 mb-4">
+            <p className="text-base text-ink-muted mb-4">
               Define measurable indicators to track your project's success
             </p>
             
-            <div className="border-2 border-stone-200 rounded-lg overflow-hidden">
+            <div className="border border-line rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-sky-50">
+                  <TableRow className="bg-forest-tint">
                     <TableHead>Indicator</TableHead>
                     <TableHead>Baseline</TableHead>
                     <TableHead>Target</TableHead>
@@ -130,13 +124,13 @@ export function OutcomesSection() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className="bg-sky-50">
+                  <TableRow className="bg-forest-tint">
                     <TableCell colSpan={4}>
                       <Button
                         onClick={addIndicatorRow}
                         variant="ghost"
                         size="sm"
-                        className="gap-2 text-sky-700"
+                        className="gap-2 text-forest"
                       >
                         <Plus className="w-4 h-4" />
                         Add Indicator
@@ -148,11 +142,11 @@ export function OutcomesSection() {
             </div>
           </div>
 
-          <div className="p-4 bg-amber-50 border-l-4 border-amber-400 rounded">
-            <p className="text-sm text-amber-900 mb-2">
-              <span>💡 Example Indicators:</span>
+          <div className="p-4 bg-ochre-tint border-l-4 border-ochre rounded">
+            <p className="text-base text-ochre-text mb-2">
+              <span>Example Indicators:</span>
             </p>
-            <ul className="text-sm text-stone-700 space-y-1 list-disc list-inside">
+            <ul className="text-base text-ink space-y-1 list-disc list-inside">
               <li>Number of full-time jobs created</li>
               <li>Revenue generated from sales</li>
               <li>Number of community members trained</li>
@@ -164,9 +158,9 @@ export function OutcomesSection() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Label htmlFor="data-collection">Data Collection Plan</Label>
-              <span className="text-xs text-stone-500">📋</span>
+              <span className="text-[15px] text-ink-muted"></span>
             </div>
-            <p className="text-sm text-stone-600 mt-1 mb-2">
+            <p className="text-base text-ink-muted mt-1 mb-2">
               How will you collect data to measure these indicators?
             </p>
             <Textarea
@@ -180,7 +174,7 @@ export function OutcomesSection() {
 
           <div>
             <Label htmlFor="evaluation-plan">Evaluation Plan</Label>
-            <p className="text-sm text-stone-600 mt-1 mb-2">
+            <p className="text-base text-ink-muted mt-1 mb-2">
               When and how will you evaluate the project's success?
             </p>
             <Textarea
@@ -192,7 +186,6 @@ export function OutcomesSection() {
             />
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
   );
 }

@@ -1,62 +1,63 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+
+import { STEP_NAMES } from '../lib/proposalSteps';
 
 interface ProgressTrackerProps {
   currentSection: number;
-  totalSections: number;
   onSectionClick: (section: number) => void;
 }
 
-export function ProgressTracker({ currentSection, totalSections, onSectionClick }: ProgressTrackerProps) {
-  const sectionTitles = [
-    'Upload Documents',
-    'Cover Page',
-    'Executive Summary',
-    'Community Context',
-    'Problem Statement',
-    'Project Description',
-    'Implementation',
-    'Budget',
-    'Outcomes',
-    'Alignment',
-    'Risk Management',
-    'Attachments'
-  ];
+/** The row of named steps above the form. Any step can be opened at any time. */
+export function ProgressTracker({ currentSection, onSectionClick }: ProgressTrackerProps) {
+  const rowRef = useRef<HTMLOListElement>(null);
+  const currentRef = useRef<HTMLButtonElement>(null);
+  const total = STEP_NAMES.length;
 
-  const progress = ((currentSection + 1) / totalSections) * 100;
+  // Keep the current step in view when the row is wider than the screen.
+  // Only the row scrolls sideways; the page itself stays put.
+  useEffect(() => {
+    const row = rowRef.current;
+    const step = currentRef.current;
+    if (!row || !step) return;
+    row.scrollTo({ left: step.offsetLeft - row.offsetLeft - (row.clientWidth - step.offsetWidth) / 2 });
+  }, [currentSection]);
 
   return (
-    <div>
-      <div className="mb-3">
-        <div className="h-2 bg-stone-200 rounded-full overflow-hidden">
+    <nav aria-label="Proposal steps">
+      <div className="flex items-center gap-3.5 mb-3">
+        <div className="flex-1 h-2 rounded bg-line overflow-hidden">
           <div
-            className="h-full bg-emerald-600 transition-all duration-300"
-            style={{ width: `${progress}%` }}
+            className="h-full bg-forest transition-all duration-300"
+            style={{ width: `${((currentSection + 1) / total) * 100}%` }}
           />
         </div>
+        <p className="text-base text-ink-muted whitespace-nowrap">
+          Step {currentSection + 1} of {total}
+        </p>
       </div>
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex gap-1 flex-wrap">
-          {Array.from({ length: totalSections }, (_, i) => i).map((num) => (
-            <button
-              key={num}
-              onClick={() => onSectionClick(num)}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                num === currentSection
-                  ? 'bg-emerald-700 text-white scale-110'
-                  : num < currentSection
-                  ? 'bg-emerald-200 text-emerald-800 hover:bg-emerald-300'
-                  : 'bg-stone-200 text-stone-600 hover:bg-stone-300'
-              }`}
-              title={sectionTitles[num]}
-            >
-              {num === 0 ? '📄' : num}
-            </button>
-          ))}
-        </div>
-        <div className="text-stone-600 ml-4">
-          {Math.round(progress)}% Complete
-        </div>
-      </div>
-    </div>
+      <ol ref={rowRef} className="flex gap-2 overflow-x-auto pb-1 -mb-1">
+        {STEP_NAMES.map((name, index) => {
+          const isCurrent = index === currentSection;
+          const tone = isCurrent
+            ? 'bg-forest text-white font-bold'
+            : index < currentSection
+              ? 'bg-forest-tint text-forest-dark hover:bg-[#D3E3D8]'
+              : 'bg-white text-ink-muted border-[1.5px] border-line hover:border-forest';
+          return (
+            <li key={name} className="shrink-0">
+              <button
+                ref={isCurrent ? currentRef : undefined}
+                type="button"
+                onClick={() => onSectionClick(index)}
+                aria-current={isCurrent ? 'step' : undefined}
+                className={`min-h-10 px-3.5 rounded-full text-[15px] whitespace-nowrap transition-colors ${tone}`}
+              >
+                {index + 1}. {name}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }
