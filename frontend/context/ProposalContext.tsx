@@ -2,6 +2,25 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 
 import { createProposal, saveProposal, type SavedProposal } from '../lib/api';
 
+export interface BudgetLine {
+  category: string;
+  description: string;
+  amount: string;
+}
+
+export interface Indicator {
+  indicator: string;
+  baseline: string;
+  target: string;
+  year: string;
+}
+
+export interface RiskRow {
+  risk: string;
+  likelihood: string;
+  mitigation: string;
+}
+
 export interface ProposalData {
   // Cover Page
   projectTitle: string;
@@ -53,12 +72,14 @@ export interface ProposalData {
   marketingBudget: string;
   otherBudget: string;
   sustainabilityPlan: string;
+  budgetLines: BudgetLine[];
   
   // Outcomes
   expectedOutcomes: string;
   successIndicators: string;
   dataCollectionPlan: string;
   evaluationPlan: string;
+  indicators: Indicator[];
   
   // Alignment
   alignmentDescription: string;
@@ -68,6 +89,7 @@ export interface ProposalData {
   
   // Risk Management
   risksMitigation: string;
+  riskRows: RiskRow[];
 
   // Attachments: which recommended documents are ticked off. Files themselves are
   // stored on the server and linked to the saved proposal.
@@ -144,15 +166,22 @@ const initialData: ProposalData = {
   marketingBudget: '',
   otherBudget: '',
   sustainabilityPlan: '',
+  budgetLines: ['Capital', 'Operations', 'Training', 'Marketing', 'Contingency'].map((category) => ({
+    category,
+    description: '',
+    amount: '',
+  })),
   expectedOutcomes: '',
   successIndicators: '',
   dataCollectionPlan: '',
   evaluationPlan: '',
+  indicators: Array.from({ length: 3 }, () => ({ indicator: '', baseline: '', target: '', year: '' })),
   alignmentDescription: '',
   communityAlignment: '',
   funderAlignment: '',
   longTermSustainability: '',
   risksMitigation: '',
+  riskRows: Array.from({ length: 3 }, () => ({ risk: '', likelihood: '', mitigation: '' })),
   attachmentChecklist: {},
 };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { SectionHeader } from './SectionHeader';
 import { STEP_NAMES } from '../../lib/proposalSteps';
 import { Input } from '../ui/input';
@@ -7,31 +7,22 @@ import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { Plus } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { useProposal } from '../../context/ProposalContext';
+import { useProposal, type Indicator } from '../../context/ProposalContext';
 
-interface Indicator {
-  indicator: string;
-  baseline: string;
-  target: string;
-  year: string;
-}
 
 export function OutcomesSection() {
   const { data, updateField } = useProposal();
-  const [indicators, setIndicators] = useState<Indicator[]>([
-    { indicator: '', baseline: '', target: '', year: '' },
-    { indicator: '', baseline: '', target: '', year: '' },
-    { indicator: '', baseline: '', target: '', year: '' },
-  ]);
+  const indicators = data.indicators;
 
   const addIndicatorRow = () => {
-    setIndicators([...indicators, { indicator: '', baseline: '', target: '', year: '' }]);
+    updateField('indicators', [...indicators, { indicator: '', baseline: '', target: '', year: '' }]);
   };
 
-  const updateIndicator = (index: number, field: keyof Indicator, value: string) => {
-    const newIndicators = [...indicators];
-    newIndicators[index][field] = value;
-    setIndicators(newIndicators);
+  const updateIndicator = (index: number, key: keyof Indicator, value: string) => {
+    updateField(
+      'indicators',
+      indicators.map((row, i) => (i === index ? { ...row, [key]: value } : row)),
+    );
   };
 
   return (
@@ -133,7 +124,7 @@ export function OutcomesSection() {
                         className="gap-2 text-forest"
                       >
                         <Plus className="w-4 h-4" />
-                        Add Indicator
+                        Add a row
                       </Button>
                     </TableCell>
                   </TableRow>
