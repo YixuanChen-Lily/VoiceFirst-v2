@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, Upl
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
 
+from ...clients.supabase_storage_client import StorageError
 from ...core.auth import User, get_current_user
 from ...schemas.proposals import (
     DraftAnalysisResponse,
@@ -22,6 +23,7 @@ from ...services import (
     proposal_files_service,
     proposal_service,
 )
+from ...services.proposal_files_service import ProposalFile
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
@@ -51,10 +53,11 @@ async def analyze_draft(file: UploadFile = File(...)) -> DraftAnalysisResponse:
 @router.post("/export")
 async def export_proposal(
     payload: str = Form(...),
-    attachments: List[UploadFile] = File(default_factory=list),
     proposal_id: Optional[str] = Form(None),
+    include_files: bool = Form(False),
     user: User = Depends(get_current_user),
 ):
+    """The proposal as a Word document; with `include_files`, a zip of the document and its attachments."""
     try:
         data = json.loads(payload)
     except json.JSONDecodeError as exc:  # pragma: no cover
@@ -65,46 +68,53 @@ async def export_proposal(
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    attachment_blobs = []
-    for upload in attachments:
-        content = await upload.read()
-        attachment_blobs.append(
-            {
-                "filename": upload.filename or "attachment",
-                "content_type": upload.content_type or "application/octet-stream",
-                "data": content,
-            }
-        )
-
-    stored_files = await _stored_files(user.id, proposal_id) if proposal_id else []
-
+    attachments = await _attachments(user.id, proposal_id) if proposal_id else []
     document_bytes = await run_in_threadpool(
         export_service.build_docx_document,
         proposal,
-        attachment_blobs,
-        stored_files,
+        [
+            {"filename": item.record.filename, "label": item.link.label, "size_bytes": item.record.size_bytes}
+            for item in attachments
+        ],
     )
+    base_name = f"{export_service.safe_filename(proposal.project_title)}-draft-proposal"
 
-    filename = f"{export_service.safe_filename(proposal.project_title)}-draft-proposal.docx"
+    if not include_files:
+        return StreamingResponse(
+            BytesIO(document_bytes),
+            headers={"Content-Disposition": f'attachment; filename="{base_name}.docx"'},
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+
+    originals = []
+    for item in attachments:
+        try:
+            originals.append((item.record.filename, await run_in_threadpool(knowledge_service.read_original, item.record)))
+        except StorageError as exc:
+            raise HTTPException(
+                status_code=502, detail=f"Couldn't fetch {item.record.filename}. Please try again."
+            ) from exc
+    archive = await run_in_threadpool(export_service.build_zip, f"{base_name}.docx", document_bytes, originals)
     return StreamingResponse(
-        BytesIO(document_bytes),
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        BytesIO(archive),
+        headers={"Content-Disposition": f'attachment; filename="{base_name}.zip"'},
+        media_type="application/zip",
     )
 
 
-async def _stored_files(user_id: str, proposal_id: str) -> List[dict]:
-    """The files kept with the saved proposal, for the export. None when file storage is not set up."""
+async def _attachments(user_id: str, proposal_id: str) -> List[ProposalFile]:
+    """The files added on the Attachments step. None when file storage is not set up.
+
+    Background files (community plans, the funder's guidelines) help the assistant and are
+    not part of what goes to the funder, so they are left out.
+    """
     try:
         files = await run_in_threadpool(proposal_files_service.list_proposal_files, user_id, proposal_id)
     except (knowledge_service.KnowledgeBaseNotConfigured, proposal_service.ProposalsNotConfigured):
         return []
     except proposal_service.ProposalNotFound as exc:
         raise HTTPException(status_code=404, detail="Proposal not found.") from exc
-    return [
-        {"filename": item.record.filename, "label": item.link.label, "size_bytes": item.record.size_bytes}
-        for item in files
-    ]
+    return [item for item in files if item.link.role == "attachment"]
 
 
 async def _run(function, *args):

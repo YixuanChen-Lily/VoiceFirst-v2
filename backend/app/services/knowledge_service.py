@@ -291,6 +291,12 @@ def get_document(document_id: str) -> Optional[DocumentRecord]:
     return get_document_store().get(document_id)
 
 
+def read_original(record: DocumentRecord) -> bytes:
+    """The file exactly as it was uploaded."""
+    _require_configured()
+    return storage.download(record.storage_path)
+
+
 def get_documents(document_ids: List[str]) -> List[DocumentRecord]:
     _require_configured()
     return get_document_store().get_many(document_ids)

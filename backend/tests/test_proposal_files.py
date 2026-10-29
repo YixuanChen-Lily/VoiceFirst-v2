@@ -305,23 +305,61 @@ def test_upload_validation(client, files):
     assert _upload_to(client, "no-such-proposal").status_code == 404
 
 
-def test_export_lists_the_proposals_stored_files(client, files):
+def _export_proposal(client, proposal_id, **form):
     import json
-    from io import BytesIO
-    from zipfile import ZipFile
 
-    proposal_id = _proposal(client)
-    _upload_to(client, proposal_id, GUIDELINE, "letter.txt", label="Letters of Support")
-
-    response = client.post(
+    return client.post(
         "/api/proposals/export",
         data={
             "payload": json.dumps({"project_title": "Riverbend Youth Hub", "organization_name": "Riverbend"}),
             "proposal_id": proposal_id,
+            **form,
         },
     )
 
+
+def test_export_lists_attachments_by_name_only(client, files):
+    from io import BytesIO
+    from zipfile import ZipFile
+
+    proposal_id = _proposal(client)
+    _upload_to(client, proposal_id, GUIDELINE, "letter.txt", role="attachment", label="Letters of Support")
+    _upload_to(client, proposal_id, PLAN, "plan.txt", role="background", label="Community context")
+
+    response = _export_proposal(client, proposal_id)
+
     assert response.status_code == 200
+    assert response.headers["content-disposition"].endswith('.docx"')
     document = ZipFile(BytesIO(response.content)).read("word/document.xml").decode()
     assert "Supporting Documents" in document
     assert "Letters of Support: letter.txt" in document
+    assert GUIDELINE.decode()[:40] not in document  # listed, never pasted in
+    assert "plan.txt" not in document  # background files are for the assistant, not the funder
+
+
+def test_export_with_files_returns_a_zip_of_the_document_and_attachments(client, files):
+    from io import BytesIO
+    from zipfile import ZipFile
+
+    proposal_id = _proposal(client)
+    _upload_to(client, proposal_id, GUIDELINE, "letter.txt", role="attachment", label="Letters of Support")
+    _upload_to(client, proposal_id, b"Second letter", "letter.txt", role="attachment", label="Letters of Support")
+    _upload_to(client, proposal_id, PLAN, "plan.txt", role="background")
+
+    response = _export_proposal(client, proposal_id, include_files="true")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert response.headers["content-disposition"] == 'attachment; filename="Riverbend-Youth-Hub-draft-proposal.zip"'
+    archive = ZipFile(BytesIO(response.content))
+    assert sorted(archive.namelist()) == [
+        "Attachments/letter (2).txt",
+        "Attachments/letter.txt",
+        "Riverbend-Youth-Hub-draft-proposal.docx",
+    ]
+    assert {archive.read("Attachments/letter.txt"), archive.read("Attachments/letter (2).txt")} == {
+        GUIDELINE,
+        b"Second letter",
+    }
+    document = ZipFile(BytesIO(archive.read("Riverbend-Youth-Hub-draft-proposal.docx"))).read("word/document.xml")
+    assert b"Letters of Support: letter.txt" in document

@@ -1,10 +1,9 @@
 """Build the exported proposal as a .docx file."""
 
-import base64
 import re
 from datetime import datetime
 from io import BytesIO
-from typing import List, Sequence
+from typing import List, Sequence, Tuple
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from ..schemas.proposals import ProposalPayload
@@ -15,17 +14,15 @@ def safe_filename(value: str) -> str:
     return sanitized or "proposal"
 
 
-def build_docx_document(
-    proposal: ProposalPayload, attachments: List[dict], stored_files: Sequence[dict] = ()
-) -> bytes:
+def build_docx_document(proposal: ProposalPayload, attachment_files: Sequence[dict] = ()) -> bytes:
     """
-    `attachments` are files sent with the export request and are written into the
-    document. `stored_files` are the files kept with the saved proposal; they are
-    listed by name so the reader knows what goes with the application.
+    `attachment_files` are the proposal's attachments (letters, plans, budgets). They are
+    listed by name so the reader knows what goes with the application; their contents
+    are never copied into the document.
     """
     buffer = BytesIO()
 
-    document_xml = _build_document_xml(proposal, attachments, stored_files)
+    document_xml = _build_document_xml(proposal, attachment_files)
     core_xml = _build_core_properties(proposal)
     app_xml = _build_app_properties()
 
@@ -108,9 +105,32 @@ def _build_app_properties() -> str:
     )
 
 
-def _build_document_xml(
-    proposal: ProposalPayload, attachments: List[dict], stored_files: Sequence[dict] = ()
-) -> str:
+def build_zip(document_name: str, document: bytes, files: Sequence[Tuple[str, bytes]]) -> bytes:
+    """The Word document plus each attachment as its own file, in an Attachments folder."""
+    buffer = BytesIO()
+    used: set = set()
+    with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
+        archive.writestr(document_name, document)
+        for filename, data in files:
+            archive.writestr(f"Attachments/{_unique_name(filename, used)}", data)
+    return buffer.getvalue()
+
+
+def _unique_name(filename: str, used: set) -> str:
+    """Keep two attachments with the same name apart: "letter.pdf", "letter (2).pdf"."""
+    name = filename.replace("/", "-").replace("\\", "-").strip() or "attachment"
+    stem, dot, extension = name.rpartition(".")
+    if not dot:
+        stem, extension = name, ""
+    candidate, number = name, 2
+    while candidate.lower() in used:
+        candidate = f"{stem} ({number}){dot}{extension}"
+        number += 1
+    used.add(candidate.lower())
+    return candidate
+
+
+def _build_document_xml(proposal: ProposalPayload, attachment_files: Sequence[dict] = ()) -> str:
     paragraphs: List[str] = []
 
     def add_heading(text: str) -> None:
@@ -158,32 +178,12 @@ def _build_document_xml(
         add_paragraph(body or "Information pending.")
         add_blank()
 
-    if stored_files:
+    if attachment_files:
         add_heading("Supporting Documents")
-        for item in stored_files:
+        for item in attachment_files:
             name = f"{item['label']}: {item['filename']}" if item.get("label") else item["filename"]
             add_paragraph(f"{name} ({item['size_bytes'] / 1024:.1f} KB)")
         add_blank()
-
-    if attachments:
-        add_heading("Attachments")
-        for item in attachments:
-            filename = item["filename"]
-            size = len(item["data"])
-            size_kb = f"{size / 1024:.1f} KB"
-            add_paragraph(f"Attachment: {filename} ({size_kb})")
-            if _is_text_attachment(item["content_type"], filename):
-                try:
-                    text_content = item["data"].decode("utf-8")
-                except UnicodeDecodeError:
-                    text_content = item["data"].decode("latin-1", errors="replace")
-                add_paragraph(text_content)
-            else:
-                encoded = base64.b64encode(item["data"]).decode("ascii")
-                add_paragraph("Binary file (base64 encoded):")
-                for chunk_start in range(0, len(encoded), 76):
-                    add_paragraph(encoded[chunk_start : chunk_start + 76])
-            add_blank()
 
     add_heading("Updated Proposal (Plain Text)")
     plain_text_sections = []
@@ -198,12 +198,6 @@ def _build_document_xml(
         f'<w:body>{document_body}<w:sectPr/></w:body>'
         '</w:document>'
     )
-
-
-def _is_text_attachment(content_type: str, filename: str) -> bool:
-    if content_type.startswith("text/"):
-        return True
-    return bool(re.search(r"\.(txt|md|csv|json)$", filename, re.IGNORECASE))
 
 
 def _xml_escape(value: str) -> str:
