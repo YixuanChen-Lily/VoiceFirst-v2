@@ -26,7 +26,9 @@ interface ProposalBuilderProps {
 
 export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps) {
   const [currentSection, setCurrentSection] = useState(0);
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  // On small screens the assistant covers the form, so it starts closed there and opens from the
+  // Assistant button. On wider screens it always sits beside the form.
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
   const totalSections = STEP_NAMES.length;
@@ -173,7 +175,8 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
         </div>
         <button
           type="button"
-          onClick={() => setIsChatOpen(!isChatOpen)}
+          onClick={() => setIsMobileChatOpen(true)}
+          aria-expanded={isMobileChatOpen}
           className="md:hidden inline-flex items-center gap-2 min-h-11 px-3 rounded-lg text-forest-dark bg-forest-tint font-bold"
         >
           <MessageCircle className="w-5 h-5" aria-hidden="true" />
@@ -257,27 +260,21 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
           </main>
         </div>
 
-        {isChatOpen && (
-          <aside aria-label="Assistant" className="hidden md:flex w-[400px] lg:w-[440px] shrink-0 border-l border-line bg-white">
-            <AIChatPanel
-              currentSection={currentSection}
-              onClose={() => setIsChatOpen(false)}
-              hasExistingDraft={!!existingDraft}
-            />
-          </aside>
-        )}
-      </div>
-
-      {/* On small screens the assistant covers the page and closes with its own button. */}
-      {isChatOpen && (
-        <div className="md:hidden fixed inset-0 bg-white z-50 overflow-hidden">
+        {/* One assistant for every screen size, so the conversation is kept when it is closed on a phone. */}
+        <aside
+          aria-label="Assistant"
+          className={`${
+            isMobileChatOpen ? 'fixed inset-0 z-50 flex' : 'hidden'
+          } md:static md:z-auto md:flex w-full md:w-[400px] lg:w-[440px] shrink-0 md:border-l border-line bg-white`}
+        >
           <AIChatPanel
             currentSection={currentSection}
-            onClose={() => setIsChatOpen(false)}
+            onClose={() => setIsMobileChatOpen(false)}
             hasExistingDraft={!!existingDraft}
           />
-        </div>
-      )}
+        </aside>
+      </div>
+
     </div>
   );
 }
