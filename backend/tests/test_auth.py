@@ -118,12 +118,21 @@ def test_token_identity_and_admin_status(jwks):
     assert admin == auth.User(id="user-9", email="admin@example.com", is_admin=True)
 
 
+def test_only_listed_emails_and_admins_have_full_access(jwks):
+    # Sign-ups are on (guests need them), so anyone could make an email account outside the site.
+    stranger = auth.verify_token(make_token(sub="user-7", email="someone@elsewhere.com"))
+
+    assert stranger.has_full_access is False and stranger.is_guest is False
+    assert auth.verify_token(make_token(email="FULL@example.com")).has_full_access is True
+    assert auth.verify_token(make_token(email="admin@example.com")).has_full_access is True
+
+
 def test_guest_tokens_are_guests_and_never_admins(jwks):
     # Supabase marks "Continue as guest" sessions with is_anonymous; they have no email.
     guest = auth.verify_token(make_token(email=None, is_anonymous=True))
     disguised = auth.verify_token(make_token(email="admin@example.com", is_anonymous=True))
 
-    assert guest == auth.User(id="user-123", email="", is_admin=False, is_guest=True)
+    assert guest == auth.User(id="user-123", email="", is_admin=False, is_guest=True, has_full_access=False)
     assert disguised.is_admin is False and disguised.is_guest is True
 
 
@@ -146,12 +155,20 @@ def test_me_reports_the_signed_in_user_and_admin_status(anonymous_client, jwks):
         token = make_token(**claims)
         return anonymous_client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
 
-    assert me().json() == {"id": "user-123", "email": "staff@example.com", "is_admin": False, "is_guest": False}
+    assert me().json() == {
+        "id": "user-123",
+        "email": "staff@example.com",
+        "is_admin": False,
+        "is_guest": False,
+        "has_full_access": True,
+    }
     assert me(sub="user-9", email="admin@example.com").json() == {
         "id": "user-9",
         "email": "admin@example.com",
         "is_admin": True,
         "is_guest": False,
+        "has_full_access": True,
     }
     assert me(email=None, is_anonymous=True).json()["is_guest"] is True
+    assert me(email="someone@elsewhere.com").json()["has_full_access"] is False
     assert anonymous_client.get("/api/me").status_code == 401

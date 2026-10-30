@@ -19,6 +19,11 @@ AUTH_DISABLED = os.getenv("AUTH_DISABLED", "").lower() in ("1", "true", "yes")
 LIBRARY_ADMIN_EMAILS = frozenset(
     email.strip().lower() for email in os.getenv("LIBRARY_ADMIN_EMAILS", "").split(",") if email.strip()
 )
+# Email accounts with unlimited use. Everyone else (guests, and any email account not on this
+# list or the admin list) gets the capped allowance in services/guest_limits.py.
+FULL_ACCESS_EMAILS = frozenset(
+    email.strip().lower() for email in os.getenv("FULL_ACCESS_EMAILS", "").split(",") if email.strip()
+)
 
 # Knowledge base: original files in Supabase Storage, records and embeddings in its Postgres.
 SUPABASE_URL = os.getenv("SUPABASE_URL")

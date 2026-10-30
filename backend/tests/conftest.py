@@ -23,6 +23,7 @@ os.environ.update(
         "SUPABASE_DB_URL": "postgresql://user:pass@localhost:1/none",
         "SUPABASE_BUCKET": "documents",
         "LIBRARY_ADMIN_EMAILS": "admin@example.com",
+        "FULL_ACCESS_EMAILS": "Staff@example.com, full@example.com",
         "AUTH_DISABLED": "",
         "CHUNK_SIZE": "200",
         "CHUNK_OVERLAP": "40",
