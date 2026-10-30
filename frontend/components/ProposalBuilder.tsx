@@ -15,17 +15,21 @@ import { ProgressTracker } from './ProgressTracker';
 import { AIChatPanel } from './chat/AIChatPanel';
 import { AppMark } from './brand/AppMark';
 import { DownloadMenu } from './proposals/DownloadMenu';
+import { DraftFillNotice } from './proposals/DraftFillNotice';
 import { ArrowLeft, MessageCircle, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useProposal } from '../context/ProposalContext';
 import { exportProposalDoc, type ProposalPayload } from '../lib/api';
-import { STEP_NAMES } from '../lib/proposalSteps';
+import { STEP_NAMES, type DraftFillResult } from '../lib/proposalSteps';
 
 interface ProposalBuilderProps {
   onBack: () => void;
   existingDraft?: File | null;
+  /** What filling in from an uploaded draft did; shown above the form until dismissed. */
+  draftFill?: DraftFillResult | null;
+  onDismissDraftFill?: () => void;
 }
 
-export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps) {
+export function ProposalBuilder({ onBack, existingDraft, draftFill, onDismissDraftFill }: ProposalBuilderProps) {
   const [currentSection, setCurrentSection] = useState(0);
   // On small screens the assistant covers the form, so it starts closed there and opens from the
   // Assistant button. On wider screens it always sits beside the form.
@@ -209,6 +213,14 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
 
           <main ref={mainRef} className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-12 py-9">
             <div className="max-w-[680px] mx-auto">
+              {draftFill && (
+                <DraftFillNotice
+                  result={draftFill}
+                  currentSection={currentSection}
+                  onGoToStep={goToSection}
+                  onDismiss={() => onDismissDraftFill?.()}
+                />
+              )}
               {currentSection === 0 && <DocumentUploadSection />}
               {currentSection === 1 && <CoverPageSection />}
               {currentSection === 2 && <ExecutiveSummarySection />}

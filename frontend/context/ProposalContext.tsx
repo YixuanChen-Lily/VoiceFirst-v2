@@ -100,8 +100,8 @@ interface ProposalContextType {
   data: ProposalData;
   updateField: (field: keyof ProposalData, value: any) => void;
   updateMultipleFields: (fields: Partial<ProposalData>) => void;
-  /** Fill in only the fields that are still empty. Returns how many were filled. */
-  fillEmptyFields: (fields: Partial<ProposalData>) => number;
+  /** Fill in only the fields that are still empty. Returns the names of the fields filled. */
+  fillEmptyFields: (fields: Partial<ProposalData>) => string[];
   /** The saved proposal being edited; null until the first save of a new proposal. */
   proposalId: string | null;
   /** Save the proposal if it has never been saved, and return its id. Files need one. */
@@ -243,16 +243,16 @@ export function ProposalProvider({ children }: { children: ReactNode }) {
     change(prev => ({ ...prev, ...fields }));
   };
 
-  const fillEmptyFields = (fields: Partial<ProposalData>): number => {
+  const fillEmptyFields = (fields: Partial<ProposalData>): string[] => {
     const pick = (current: ProposalData) =>
       Object.fromEntries(
         Object.entries(fields).filter(
           ([key, value]) => key in initialData && isFilled(value) && !isFilled(current[key as keyof ProposalData]),
         ),
       ) as Partial<ProposalData>;
-    const count = Object.keys(pick(dataRef.current)).length;
-    if (count > 0) change((prev) => ({ ...prev, ...pick(prev) }));
-    return count;
+    const filled = Object.keys(pick(dataRef.current));
+    if (filled.length > 0) change((prev) => ({ ...prev, ...pick(prev) }));
+    return filled;
   };
 
   const save = useCallback(async () => {
