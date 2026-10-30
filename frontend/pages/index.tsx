@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { NextPage } from 'next';
 import { DraftAnalysisPage } from '../components/DraftAnalysisPage';
+import type { DraftFillResult } from '../lib/proposalSteps';
 import { LandingPage } from '../components/LandingPage';
 import { MyFilesPage } from '../components/files/MyFilesPage';
 import { LibraryPage } from '../components/library/LibraryPage';
@@ -12,6 +13,7 @@ type WorkflowStep = 'landing' | 'draft-analysis' | 'builder' | 'library' | 'my-f
 const HomePage: NextPage = () => {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('landing');
   const [uploadedDraft, setUploadedDraft] = useState<File | null>(null);
+  const [draftFill, setDraftFill] = useState<DraftFillResult | null>(null);
   const { startNewProposal, openProposal } = useProposal();
 
   return (
@@ -21,6 +23,7 @@ const HomePage: NextPage = () => {
           onStartFromScratch={async () => {
             await startNewProposal();
             setUploadedDraft(null);
+            setDraftFill(null);
             setCurrentStep('builder');
           }}
           onOpenLibrary={() => setCurrentStep('library')}
@@ -28,6 +31,7 @@ const HomePage: NextPage = () => {
           onOpenProposal={async (proposal) => {
             await openProposal(proposal);
             setUploadedDraft(null);
+            setDraftFill(null);
             setCurrentStep('builder');
           }}
           onUploadDraft={async (file) => {
@@ -41,7 +45,10 @@ const HomePage: NextPage = () => {
       {currentStep === 'draft-analysis' && uploadedDraft && (
         <DraftAnalysisPage
           draftFile={uploadedDraft}
-          onContinue={() => setCurrentStep('builder')}
+          onContinue={(fill) => {
+            setDraftFill(fill);
+            setCurrentStep('builder');
+          }}
           onBack={() => setCurrentStep('landing')}
         />
       )}
@@ -54,6 +61,8 @@ const HomePage: NextPage = () => {
         <ProposalBuilder
           onBack={() => setCurrentStep('landing')}
           existingDraft={uploadedDraft}
+          draftFill={draftFill}
+          onDismissDraftFill={() => setDraftFill(null)}
         />
       )}
     </div>
