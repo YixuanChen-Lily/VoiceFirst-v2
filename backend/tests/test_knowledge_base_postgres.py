@@ -14,6 +14,7 @@ from langchain_core.embeddings import DeterministicFakeEmbedding
 from backend.app.clients.document_store import DocumentRecord, DocumentStore, new_document_id, utc_now
 from backend.app.clients.proposal_file_store import ProposalFileStore
 from backend.app.clients.proposal_store import ProposalStore
+from backend.app.clients.usage_store import UsageStore
 from backend.app.clients.vector_index import VectorIndex
 from backend.app.core.database import create_database_engine
 
@@ -153,3 +154,12 @@ def test_proposal_file_links_round_trip_and_stay_private(engine):
     assert sorted(store.remove_for_proposal(first, "user-a")) == [budget]
     store.remove_for_document(plan, "user-a")
     assert store.list_for_proposal(second, "user-a") == []
+
+
+def test_guest_usage_counts_up_to_the_limit(engine):
+    usage = UsageStore(engine)
+    owner = f"guest-{new_document_id()}"
+
+    assert [usage.try_use(owner, "chat", 2) for _ in range(3)] == [True, True, False]
+    assert usage.try_use(owner, "draft_check", 2) is True  # each feature has its own count
+    assert usage.try_use(f"other-{owner}", "chat", 2) is True  # and each guest

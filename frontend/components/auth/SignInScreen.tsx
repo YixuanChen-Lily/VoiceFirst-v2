@@ -8,11 +8,24 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
 export function SignInScreen() {
-  const { sendSignInLink } = useAuth();
+  const { sendSignInLink, continueAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isStartingGuest, setIsStartingGuest] = useState(false);
+  const [guestError, setGuestError] = useState<string | null>(null);
+
+  const handleGuest = async () => {
+    setIsStartingGuest(true);
+    setGuestError(null);
+    const problem = await continueAsGuest();
+    // On success the app opens by itself; only a problem needs showing here.
+    if (problem) {
+      setGuestError(problem);
+      setIsStartingGuest(false);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -37,7 +50,7 @@ export function SignInScreen() {
         <div className="text-center mb-8">
           <AppMark size={64} className="mx-auto mb-5" />
           <h1 className="text-3xl font-bold tracking-tight mb-2">Community Grant Assistant</h1>
-          <p className="text-lg text-ink-muted">Sign in to continue.</p>
+          <p className="text-lg text-ink-muted">Sign in, or look around as a guest.</p>
         </div>
 
         <div className="bg-white border border-line rounded-2xl p-6 sm:p-8">
@@ -86,6 +99,27 @@ export function SignInScreen() {
               </p>
             </form>
           )}
+        </div>
+
+        <div className="mt-6 bg-white border border-line rounded-2xl p-6 sm:p-8 text-center">
+          <p className="text-xl font-bold mb-2">Just looking?</p>
+          <p className="text-ink-muted mb-5">
+            Try the app without an email. Your work is kept in this browser only, and the assistant
+            has a limited number of uses.
+          </p>
+          {guestError && (
+            <p role="alert" className="text-sm text-red-700 mb-4">
+              {guestError}
+            </p>
+          )}
+          <Button
+            variant="outline"
+            onClick={handleGuest}
+            disabled={isStartingGuest}
+            className="w-full min-h-12 text-base font-bold"
+          >
+            {isStartingGuest ? 'Opening…' : 'Continue as guest'}
+          </Button>
         </div>
       </div>
     </div>

@@ -7,7 +7,7 @@ from ...clients.supabase_storage_client import StorageError
 from ...core import settings
 from ...core.auth import User, get_current_user
 from ...schemas.files import AddFileRequest, FileRole, MyFileOut, ProposalFileOut, UpdateFileRequest
-from ...services import knowledge_service, proposal_files_service, proposal_service
+from ...services import guest_limits, knowledge_service, proposal_files_service, proposal_service
 from ...services.document_parsing_service import DocumentParsingError
 from ...services.proposal_files_service import ProposalFile, ShelfFile
 
@@ -73,13 +73,16 @@ def _proposal_file(item: ProposalFile) -> ProposalFileOut:
     )
 
 
-async def _read_upload(file: UploadFile) -> bytes:
+async def _read_upload(file: UploadFile, user: User) -> bytes:
+    """The uploaded bytes, after the size checks; counts as one of a guest's uploads."""
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
     if len(content) > settings.MAX_UPLOAD_BYTES:
         limit_mb = settings.MAX_UPLOAD_BYTES // (1024 * 1024)
         raise HTTPException(status_code=413, detail=f"File is larger than the {limit_mb} MB limit.")
+    guest_limits.check_upload_size(user, len(content))
+    await guest_limits.use(user, "file_upload")
     return content
 
 
@@ -96,7 +99,7 @@ async def list_my_files(user: User = Depends(get_current_user)) -> List[MyFileOu
 @router.post("/files", response_model=MyFileOut, status_code=201)
 async def upload_my_file(file: UploadFile = File(...), user: User = Depends(get_current_user)) -> MyFileOut:
     """Keep a file in My files without adding it to a proposal."""
-    content = await _read_upload(file)
+    content = await _read_upload(file, user)
     record, _ = await _run(
         proposal_files_service.upload_file,
         owner_id=user.id,
@@ -133,7 +136,7 @@ async def upload_proposal_file(
     user: User = Depends(get_current_user),
 ) -> ProposalFileOut:
     """Upload a new file: it is kept in My files and added to this proposal."""
-    content = await _read_upload(file)
+    content = await _read_upload(file, user)
     _, added = await _run(
         proposal_files_service.upload_file,
         owner_id=user.id,

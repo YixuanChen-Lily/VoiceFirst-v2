@@ -21,6 +21,7 @@ from ...services import (
     document_parsing_service,
     draft_fields_service,
     export_service,
+    guest_limits,
     knowledge_service,
     proposal_files_service,
     proposal_service,
@@ -30,7 +31,9 @@ from ...services.proposal_files_service import ProposalFile
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
 
-@router.post("/analyze", response_model=DraftAnalysisResponse)
+@router.post(
+    "/analyze", response_model=DraftAnalysisResponse, dependencies=[Depends(guest_limits.guest_limit("draft_check"))]
+)
 async def analyze_draft(file: UploadFile = File(...)) -> DraftAnalysisResponse:
     """Analyze an uploaded proposal draft and return section-level scoring."""
 
@@ -54,7 +57,7 @@ async def analyze_draft(file: UploadFile = File(...)) -> DraftAnalysisResponse:
 
 @router.post("/extract-fields", response_model=DraftFieldsResponse)
 async def extract_draft_fields(
-    file: UploadFile = File(...), user: User = Depends(get_current_user)
+    file: UploadFile = File(...), user: User = Depends(guest_limits.guest_limit("draft_fill"))
 ) -> DraftFieldsResponse:
     """Read an existing draft and return the form fields it covers, in the draft's own words."""
     content = await file.read()
@@ -149,7 +152,9 @@ async def _run(function, *args):
 
 
 @router.post("", response_model=SavedProposal, status_code=201)
-async def create_proposal(request: ProposalSaveRequest, user: User = Depends(get_current_user)) -> SavedProposal:
+async def create_proposal(
+    request: ProposalSaveRequest, user: User = Depends(guest_limits.guest_limit("proposal"))
+) -> SavedProposal:
     """Save a new proposal for the signed-in user."""
     record = await _run(proposal_service.create_proposal, user.id, request.data)
     return SavedProposal.model_validate(record)

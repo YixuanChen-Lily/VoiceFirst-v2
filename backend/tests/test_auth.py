@@ -118,6 +118,15 @@ def test_token_identity_and_admin_status(jwks):
     assert admin == auth.User(id="user-9", email="admin@example.com", is_admin=True)
 
 
+def test_guest_tokens_are_guests_and_never_admins(jwks):
+    # Supabase marks "Continue as guest" sessions with is_anonymous; they have no email.
+    guest = auth.verify_token(make_token(email=None, is_anonymous=True))
+    disguised = auth.verify_token(make_token(email="admin@example.com", is_anonymous=True))
+
+    assert guest == auth.User(id="user-123", email="", is_admin=False, is_guest=True)
+    assert disguised.is_admin is False and disguised.is_guest is True
+
+
 def test_sign_in_can_be_switched_off_for_local_development(anonymous_client, monkeypatch):
     monkeypatch.setattr(settings, "AUTH_DISABLED", True)
 
@@ -137,10 +146,12 @@ def test_me_reports_the_signed_in_user_and_admin_status(anonymous_client, jwks):
         token = make_token(**claims)
         return anonymous_client.get("/api/me", headers={"Authorization": f"Bearer {token}"})
 
-    assert me().json() == {"id": "user-123", "email": "staff@example.com", "is_admin": False}
+    assert me().json() == {"id": "user-123", "email": "staff@example.com", "is_admin": False, "is_guest": False}
     assert me(sub="user-9", email="admin@example.com").json() == {
         "id": "user-9",
         "email": "admin@example.com",
         "is_admin": True,
+        "is_guest": False,
     }
+    assert me(email=None, is_anonymous=True).json()["is_guest"] is True
     assert anonymous_client.get("/api/me").status_code == 401
