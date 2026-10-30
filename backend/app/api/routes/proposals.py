@@ -10,6 +10,7 @@ from ...clients.supabase_storage_client import StorageError
 from ...core.auth import User, get_current_user
 from ...schemas.proposals import (
     DraftAnalysisResponse,
+    DraftFieldsResponse,
     ProposalPayload,
     ProposalSaveRequest,
     ProposalSummary,
@@ -18,6 +19,7 @@ from ...schemas.proposals import (
 from ...services import (
     analysis_service,
     document_parsing_service,
+    draft_fields_service,
     export_service,
     knowledge_service,
     proposal_files_service,
@@ -48,6 +50,23 @@ async def analyze_draft(file: UploadFile = File(...)) -> DraftAnalysisResponse:
         )
 
     return await analysis_service.analyze_text(extracted_text)
+
+
+@router.post("/extract-fields", response_model=DraftFieldsResponse)
+async def extract_draft_fields(
+    file: UploadFile = File(...), user: User = Depends(get_current_user)
+) -> DraftFieldsResponse:
+    """Read an existing draft and return the form fields it covers, in the draft's own words."""
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    try:
+        text = document_parsing_service.parse_document(content, file.filename or "").text
+    except document_parsing_service.DocumentParsingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Uploaded file does not contain readable text.")
+    return await draft_fields_service.extract_fields(text)
 
 
 @router.post("/export")

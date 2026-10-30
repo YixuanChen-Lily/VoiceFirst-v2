@@ -161,6 +161,15 @@ export async function analyzeDraft(file: File): Promise<DraftAnalysisResponse> {
   return handleResponse<DraftAnalysisResponse>(response);
 }
 
+/** The form fields an existing draft covers, in the draft's own words. */
+export async function extractDraftFields(file: File): Promise<Record<string, unknown>> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiFetch('/proposals/extract-fields', { method: 'POST', body: formData });
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return ((await response.json()) as { fields: Record<string, unknown> }).fields;
+}
+
 
 export async function chatWithAssistant(
   payload: ChatRequestBody,

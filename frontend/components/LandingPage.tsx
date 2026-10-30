@@ -85,7 +85,7 @@ export function LandingPage({ onStartFromScratch, onUploadDraft, onOpenLibrary, 
               ref={draftInputRef}
               type="file"
               className="hidden"
-              accept=".pdf,.doc,.docx,.txt"
+              accept=".pdf,.docx,.txt,.md"
               onChange={handleDraftChosen}
             />
           </div>

@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { CheckCircle, AlertTriangle, AlertCircle, ArrowRight } from 'lucide-react';
+import { CheckCircle, AlertTriangle, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { SubPage } from './layout/SubPage';
-import { analyzeDraft, DraftAnalysis as DraftAnalysisPayload } from '../lib/api';
+import { analyzeDraft, extractDraftFields, uploadProposalFile, DraftAnalysis as DraftAnalysisPayload } from '../lib/api';
+import { useProposal, type ProposalData } from '../context/ProposalContext';
+
+/** The draft is kept with the proposal under this label, so the assistant can read it. */
+const DRAFT_LABEL = 'Your draft';
+
+type FillState = { status: 'filling' } | { status: 'done'; count: number } | { status: 'failed'; message: string };
 
 interface DraftAnalysisPageProps {
   draftFile: File;
@@ -28,6 +34,44 @@ export function DraftAnalysisPage({ draftFile, onContinue, onBack }: DraftAnalys
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fill, setFill] = useState<FillState>({ status: 'filling' });
+  const [draftNotKept, setDraftNotKept] = useState(false);
+  const { fillEmptyFields, ensureSaved } = useProposal();
+
+  // While the draft is scored, fill the proposal's empty fields from it and keep the draft with
+  // the proposal. Continue waits for the fields, so they are in place when the builder opens.
+  useEffect(() => {
+    let isMounted = true;
+
+    const fillFields = async () => {
+      setFill({ status: 'filling' });
+      try {
+        const fields = await extractDraftFields(draftFile);
+        if (!isMounted) return;
+        setFill({ status: 'done', count: fillEmptyFields(fields as Partial<ProposalData>) });
+      } catch (err) {
+        if (!isMounted) return;
+        setFill({ status: 'failed', message: err instanceof Error ? err.message : 'Something went wrong.' });
+      }
+    };
+
+    const keepDraft = async () => {
+      try {
+        const proposalId = await ensureSaved();
+        await uploadProposalFile(proposalId, draftFile, { role: 'background', label: DRAFT_LABEL });
+      } catch {
+        if (isMounted) setDraftNotKept(true);
+      }
+    };
+
+    fillFields();
+    keepDraft();
+    return () => {
+      isMounted = false;
+    };
+    // Runs once per draft; the context functions don't change what it does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftFile]);
 
   useEffect(() => {
     let isMounted = true;
@@ -230,6 +274,35 @@ export function DraftAnalysisPage({ draftFile, onContinue, onBack }: DraftAnalys
           </p>
         ))}
 
+        {fill.status === 'filling' && (
+          <p role="status" className="flex items-center gap-2.5 rounded-xl bg-white border border-line px-4 py-3">
+            <Loader2 className="w-5 h-5 animate-spin text-forest shrink-0" aria-hidden="true" />
+            Filling in your proposal from the draft…
+          </p>
+        )}
+        {fill.status === 'done' && (
+          <p role="status" className="flex items-start gap-2.5 rounded-xl bg-forest-tint border border-[#C7DACD] px-4 py-3 text-forest-dark">
+            <CheckCircle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
+            {fill.count > 0
+              ? `Filled in ${fill.count} ${fill.count === 1 ? 'part' : 'parts'} of your proposal from the draft. Check each step as you go; you can change anything.`
+              : "Your draft didn't match any of the proposal's fields, so they're still empty. The assistant can help you fill them in."}
+          </p>
+        )}
+        {fill.status === 'failed' && (
+          <p role="alert" className="flex items-start gap-2.5 rounded-xl border-l-4 border-ochre bg-ochre-tint px-4 py-3 text-ochre-text">
+            <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
+            <span>
+              Couldn&apos;t fill in the fields from your draft: {fill.message} You can still continue and fill them in
+              yourself.
+            </span>
+          </p>
+        )}
+        {draftNotKept && (
+          <p className="text-base text-ink-muted">
+            Your draft couldn&apos;t be saved with the proposal, so the assistant won&apos;t be able to read it.
+          </p>
+        )}
+
         <section className="bg-white border border-line rounded-2xl p-6 sm:p-8">
           <p className="text-base text-ink-muted mb-1">Overall score</p>
           <p className="flex flex-wrap items-baseline gap-x-3">
@@ -283,11 +356,15 @@ export function DraftAnalysisPage({ draftFile, onContinue, onBack }: DraftAnalys
         <section className="bg-forest-tint border border-[#C7DACD] rounded-2xl p-6 sm:p-8 text-center">
           <h2 className="text-2xl font-bold text-forest-dark mb-2">Ready to improve it?</h2>
           <p className="text-lg text-forest-dark mb-6 max-w-2xl mx-auto">
-            The assistant will go through your proposal with you, one part at a time, starting with what needs the most work.
+            The assistant has your draft and will go through the proposal with you, one part at a time.
           </p>
-          <Button onClick={onContinue} size="lg" className="gap-2 px-7 text-lg">
-            Continue with the assistant
-            <ArrowRight className="w-5 h-5" aria-hidden="true" />
+          <Button onClick={onContinue} size="lg" className="gap-2 px-7 text-lg" disabled={fill.status === 'filling'}>
+            {fill.status === 'filling' ? 'Filling in fields…' : 'Continue with the assistant'}
+            {fill.status === 'filling' ? (
+              <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+            ) : (
+              <ArrowRight className="w-5 h-5" aria-hidden="true" />
+            )}
           </Button>
         </section>
       </div>
