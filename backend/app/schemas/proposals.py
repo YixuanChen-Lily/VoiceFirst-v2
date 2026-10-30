@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class DraftAnalysis(BaseModel):
@@ -39,32 +39,40 @@ class DraftAnalysisResponse(BaseModel):
     characters_total: int
 
 
-class DraftMilestone(BaseModel):
-    name: str = Field(..., description="What will be done")
+class FormMilestone(BaseModel):
+    name: str = Field("", description="What will be done")
     date: str = Field("", description="When, in the draft's own words (a date, month or quarter)")
 
 
-class DraftBudgetLine(BaseModel):
-    category: str = Field(..., description="Cost category, e.g. Staff, Equipment, Construction")
+class FormBudgetLine(BaseModel):
+    category: str = Field("", description="Cost category, e.g. Staff, Equipment, Construction")
     description: str = Field("", description="What the money is for")
     amount: str = Field("", description="Amount as written in the draft, digits only if possible")
 
 
-class DraftIndicator(BaseModel):
-    indicator: str = Field(..., description="What is measured, e.g. Households served")
+class FormIndicator(BaseModel):
+    indicator: str = Field("", description="What is measured, e.g. Households served")
     baseline: str = Field("", description="Where things are now")
     target: str = Field("", description="Where the project aims to get")
     year: str = Field("", description="By when")
 
 
-class DraftRisk(BaseModel):
-    risk: str = Field(..., description="What could go wrong")
-    likelihood: Literal["", "low", "medium", "high"] = Field("", description="How likely, if the draft says")
+class FormRisk(BaseModel):
+    risk: str = Field("", description="What could go wrong")
+    likelihood: str = Field("", description="How likely: low, medium or high, if stated")
     mitigation: str = Field("", description="What the applicant will do about it")
 
 
-class DraftFields(BaseModel):
-    """The proposal form's fields, filled from an existing draft. Anything the draft doesn't cover stays empty."""
+class ProposalForm(BaseModel):
+    """The proposal form as the website holds it (camelCase keys). Other keys are ignored."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_missing(cls, value: Any) -> Any:
+        """Older saved forms may hold null for a field; treat it as empty."""
+        if isinstance(value, dict):
+            return {key: item for key, item in value.items() if item is not None}
+        return value
 
     projectTitle: str = Field("", description="Name of the project")
     organizationName: str = Field("", description="Organization applying")
@@ -93,7 +101,7 @@ class DraftFields(BaseModel):
     implementationResponsibilities: str = Field("", description="Key people or roles and what each does")
     implementationPartnerships: str = Field("", description="Partner organizations")
     implementationRiskOverview: str = Field("", description="A brief note on main risks, if given with the plan")
-    milestones: List[DraftMilestone] = Field(default_factory=list, description="Up to 6 milestones")
+    milestones: List[FormMilestone] = Field(default_factory=list, description="Up to 6 milestones")
     totalBudget: str = Field("", description="Total project cost")
     requestedAmount: str = Field("", description="Amount requested from this funder")
     communityContribution: str = ""
@@ -103,36 +111,33 @@ class DraftFields(BaseModel):
     marketingBudget: str = Field("", description="Promotion or marketing costs")
     otherBudget: str = Field("", description="Funding from other sources")
     sustainabilityPlan: str = Field("", description="How the project continues after the grant")
-    budgetLines: List[DraftBudgetLine] = Field(default_factory=list, description="Itemized costs, if listed")
+    budgetLines: List[FormBudgetLine] = Field(default_factory=list, description="Itemized costs, if listed")
     expectedOutcomes: str = Field("", description="What will change")
     successIndicators: str = Field("", description="How they'll know it worked")
     dataCollectionPlan: str = ""
     evaluationPlan: str = ""
-    indicators: List[DraftIndicator] = Field(default_factory=list, description="Measurable targets, if listed")
+    indicators: List[FormIndicator] = Field(default_factory=list, description="Measurable targets, if listed")
     communityAlignment: str = Field("", description="How the project fits the community's plans")
     funderAlignment: str = Field("", description="How the project fits the funder's priorities")
     longTermSustainability: str = Field("", description="Lasting benefits after funding ends")
     risksMitigation: str = Field("", description="Summary of risks and how they'll be handled")
-    riskRows: List[DraftRisk] = Field(default_factory=list, description="Individual risks, if listed")
+    riskRows: List[FormRisk] = Field(default_factory=list, description="Individual risks, if listed")
+
+
+class DraftFields(ProposalForm):
+    """The form filled from an existing draft. Anything the draft doesn't cover stays empty."""
+
+
+class ProposalDocument(ProposalForm):
+    """What the Word download is built from: the form, plus a field older proposals may still hold."""
+
+    alignmentDescription: str = ""
 
 
 class DraftFieldsResponse(BaseModel):
     """Only the fields the draft covers; the website leaves the rest as they are."""
 
     fields: Dict[str, Any]
-
-
-class ProposalPayload(BaseModel):
-    project_title: str
-    organization_name: str
-    submission_date: Optional[str] = None
-    executive_summary: Optional[str] = None
-    community_background: Optional[str] = None
-    problem_description: Optional[str] = None
-    objectives: List[str] = Field(default_factory=list)
-    milestones: List[str] = Field(default_factory=list)
-    requested_amount: Optional[str] = None
-    risks: Optional[str] = None
 
 
 class ProposalSaveRequest(BaseModel):

@@ -11,7 +11,7 @@ from ...core.auth import User, get_current_user
 from ...schemas.proposals import (
     DraftAnalysisResponse,
     DraftFieldsResponse,
-    ProposalPayload,
+    ProposalDocument,
     ProposalSaveRequest,
     ProposalSummary,
     SavedProposal,
@@ -83,7 +83,7 @@ async def export_proposal(
         raise HTTPException(status_code=400, detail="Invalid JSON payload.") from exc
 
     try:
-        proposal = ProposalPayload(**data)
+        proposal = ProposalDocument.model_validate(data)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -96,7 +96,7 @@ async def export_proposal(
             for item in attachments
         ],
     )
-    base_name = f"{export_service.safe_filename(proposal.project_title)}-draft-proposal"
+    base_name = f"{export_service.safe_filename(proposal.projectTitle or 'proposal')}-draft-proposal"
 
     if not include_files:
         return StreamingResponse(
