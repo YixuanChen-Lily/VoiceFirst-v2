@@ -7,47 +7,6 @@ export interface DraftAnalysis {
   score?: number;
 }
 
-export interface ProposalPayload {
-  projectTitle: string;
-  organizationName: string;
-  submissionDate?: string;
-  executiveSummary?: string;
-  communityBackground?: string;
-  problemDescription?: string;
-  objectives?: string[];
-  milestones?: string[];
-  requestedAmount?: string;
-  risks?: string;
-}
-
-interface ProposalRequestPayload {
-  project_title: string;
-  organization_name: string;
-  submission_date?: string;
-  executive_summary?: string;
-  community_background?: string;
-  problem_description?: string;
-  objectives?: string[];
-  milestones?: string[];
-  requested_amount?: string;
-  risks?: string;
-}
-
-function serializeProposalPayload(payload: ProposalPayload): ProposalRequestPayload {
-  return {
-    project_title: payload.projectTitle,
-    organization_name: payload.organizationName,
-    submission_date: payload.submissionDate,
-    executive_summary: payload.executiveSummary,
-    community_background: payload.communityBackground,
-    problem_description: payload.problemDescription,
-    objectives: payload.objectives,
-    milestones: payload.milestones,
-    requested_amount: payload.requestedAmount,
-    risks: payload.risks,
-  };
-}
-
 export interface ConversationMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -219,14 +178,15 @@ export async function synthesizeSpeech(
 }
 
 export async function exportProposalDoc(
-  payload: ProposalPayload,
+  /** The whole form, as the builder holds it. */
+  form: object,
   /** A saved proposal's attachments are listed by name in the document. */
   proposalId?: string | null,
   /** True returns a .zip of the document plus each attachment as its own file. */
   includeFiles = false,
 ): Promise<Blob> {
   const formData = new FormData();
-  formData.append('payload', JSON.stringify(serializeProposalPayload(payload)));
+  formData.append('payload', JSON.stringify(form));
   if (proposalId) formData.append('proposal_id', proposalId);
   if (includeFiles) formData.append('include_files', 'true');
 

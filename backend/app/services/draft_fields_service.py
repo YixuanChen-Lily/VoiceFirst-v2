@@ -36,7 +36,12 @@ async def extract_fields(text: str) -> DraftFieldsResponse:
     except Exception as exc:
         logger.warning("Filling fields from a draft failed: %s", exc)
         raise HTTPException(status_code=502, detail="Couldn't read the fields from your draft. Please try again.") from exc
-    return DraftFieldsResponse(fields=_non_empty(result.model_dump()))
+    fields = result.model_dump()
+    for row in fields.get("riskRows", []):
+        # The form offers low / medium / high; anything else is left for the person to choose.
+        likelihood = row.get("likelihood", "").strip().lower()
+        row["likelihood"] = likelihood if likelihood in ("low", "medium", "high") else ""
+    return DraftFieldsResponse(fields=_non_empty(fields))
 
 
 def _non_empty(fields: Dict[str, Any]) -> Dict[str, Any]:

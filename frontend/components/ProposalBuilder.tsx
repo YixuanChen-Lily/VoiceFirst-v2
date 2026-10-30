@@ -18,7 +18,7 @@ import { DownloadMenu } from './proposals/DownloadMenu';
 import { DraftFillNotice } from './proposals/DraftFillNotice';
 import { ArrowLeft, MessageCircle, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useProposal } from '../context/ProposalContext';
-import { exportProposalDoc, type ProposalPayload } from '../lib/api';
+import { exportProposalDoc } from '../lib/api';
 import { STEP_NAMES, type DraftFillResult } from '../lib/proposalSteps';
 
 interface ProposalBuilderProps {
@@ -56,34 +56,6 @@ export function ProposalBuilder({ onBack, existingDraft, draftFill, onDismissDra
 
   const handleSectionClick = goToSection;
 
-  const buildPayload = (): ProposalPayload => {
-    const objectives = [data.objective1, data.objective2, data.objective3].filter(
-      (value): value is string => Boolean(value?.trim()),
-    );
-
-    const milestones = data.milestones
-      .filter((milestone) => milestone.name || milestone.date)
-      .map((milestone) =>
-        [milestone.name, milestone.date].filter(Boolean).join(' — '),
-      );
-
-    const projectTitle = data.projectTitle.trim() || 'Untitled Project';
-    const organizationName = data.organizationName.trim() || 'Unknown Organization';
-
-    return {
-      projectTitle,
-      organizationName,
-      submissionDate: data.submissionDate || undefined,
-      executiveSummary: data.executiveSummary || undefined,
-      communityBackground: data.communityBackground || undefined,
-      problemDescription: data.problemDescription || undefined,
-      objectives,
-      milestones,
-      requestedAmount: data.requestedAmount || undefined,
-      risks: data.risksMitigation || undefined,
-    };
-  };
-
   const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -100,9 +72,9 @@ export function ProposalBuilder({ onBack, existingDraft, draftFill, onDismissDra
     setSubmitStatus(null);
 
     try {
-      const payload = buildPayload();
-      const blob = await exportProposalDoc(payload, proposalId, includeFiles);
-      const safeTitle = payload.projectTitle
+      const blob = await exportProposalDoc(data, proposalId, includeFiles);
+      const safeTitle = data.projectTitle
+        .trim()
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '') || 'proposal';

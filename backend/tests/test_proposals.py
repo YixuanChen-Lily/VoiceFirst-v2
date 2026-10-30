@@ -1,6 +1,5 @@
 import json
 from io import BytesIO
-from zipfile import ZipFile
 
 import httpx
 import pytest
@@ -168,18 +167,56 @@ def _export(client, payload: dict, files=None):
     return client.post("/api/proposals/export", data={"payload": json.dumps(payload)}, files=files)
 
 
-def test_export_builds_a_docx(client):
-    response = _export(
-        client,
-        {
-            "project_title": "Riverbend Youth Hub & Café",
-            "organization_name": "Riverbend First Nation",
-            "submission_date": "2026-10-05",
-            "executive_summary": "A place for youth.",
-            "objectives": ["Open the hub", "Hire two staff"],
-            "requested_amount": "$250,000",
-        },
-    )
+def _document_text(content: bytes) -> str:
+    """All paragraphs and table cells of a .docx, one per line."""
+    from docx import Document
+
+    doc = Document(BytesIO(content))
+    lines = [paragraph.text for paragraph in doc.paragraphs]
+    for table in doc.tables:
+        for row in table.rows:
+            lines.append(" | ".join(cell.text for cell in row.cells))
+    return "\n".join(lines)
+
+
+FULL_FORM = {
+    "projectTitle": "Riverbend Youth Hub & Café",
+    "organizationName": "Riverbend First Nation",
+    "fundedBy": "Northern Youth Fund",
+    "submissionDate": "2026-10-05",
+    "contactName": "Ana Morin",
+    "contactEmail": "ana@example.org",
+    "executiveSummary": "A place for youth.\n\nOpen every evening.",
+    "communityName": "Riverbend",
+    "population": "1,140",
+    "communityBackground": "A river community.",
+    "problemDescription": "Youth have nowhere to go.",
+    "supportingEvidence": "Survey of 80 youth.",
+    "objective1": "Open the hub",
+    "objective2": "Hire two staff",
+    "objective3": "",
+    "year1Activities": "Renovate the building.",
+    "governanceStructure": "A youth council reports to Chief and Council.",
+    "milestones": [{"name": "Hub opens", "date": "June 2027"}, {"name": "", "date": ""}],
+    "totalBudget": "$300,000",
+    "requestedAmount": "$250,000",
+    "budgetLines": [
+        {"category": "Capital", "description": "Renovation", "amount": "$200,000"},
+        {"category": "Staff", "description": "Two youth workers", "amount": "50,000"},
+        {"category": "Training", "description": "", "amount": ""},
+    ],
+    "sustainabilityPlan": "Café income covers staff from Year 3.",
+    "expectedOutcomes": "Youth have a safe place.",
+    "indicators": [{"indicator": "Youth visits per week", "baseline": "0", "target": "60", "year": "2028"}],
+    "funderAlignment": "Matches the fund's youth priority.",
+    "riskRows": [{"risk": "Building delays", "likelihood": "medium", "mitigation": "Book contractors early"}],
+    "risksMitigation": "We have a contingency budget.",
+    "attachmentChecklist": {"lettersOfSupport": True},
+}
+
+
+def test_export_includes_the_whole_form(client):
+    response = _export(client, FULL_FORM)
 
     assert response.status_code == 200
     assert response.headers["content-type"] == (
@@ -188,46 +225,70 @@ def test_export_builds_a_docx(client):
     assert response.headers["content-disposition"] == (
         'attachment; filename="Riverbend-Youth-Hub-Caf-draft-proposal.docx"'
     )
+    text = _document_text(response.content)
+    for expected in [
+        "Riverbend Youth Hub & Café",
+        "Submitted by: Riverbend First Nation",
+        "Submitted to: Northern Youth Fund",
+        "Amount requested: $250,000",
+        "Ana Morin",
+        "A place for youth.",
+        "Open every evening.",
+        "Riverbend · Population: 1,140",
+        "A river community.",
+        "Youth have nowhere to go.",
+        "Survey of 80 youth.",
+        "Open the hub",
+        "Hire two staff",
+        "Renovate the building.",
+        "A youth council reports to Chief and Council.",
+        "Hub opens | June 2027",
+        "Total project cost | $300,000",
+        "Capital | Renovation | $200,000",
+        "Staff | Two youth workers | 50,000",
+        "Total |  | $250,000",
+        "Café income covers staff from Year 3.",
+        "Youth visits per week | 0 | 60 | 2028",
+        "Matches the fund's youth priority.",
+        "Building delays | Medium | Book contractors early",
+        "We have a contingency budget.",
+    ]:
+        assert expected in text, expected
+    assert "Training |  | " not in text  # empty table rows are left out
+    assert "Not filled in yet." not in text  # every part has something
 
-    with ZipFile(BytesIO(response.content)) as docx:
-        assert sorted(docx.namelist()) == [
-            "[Content_Types].xml",
-            "_rels/.rels",
-            "docProps/app.xml",
-            "docProps/core.xml",
-            "word/_rels/document.xml.rels",
-            "word/document.xml",
-        ]
-        document = docx.read("word/document.xml").decode()
-        core = docx.read("docProps/core.xml").decode()
 
-    assert "Riverbend Youth Hub &amp; Café" in document
-    assert "Organization: Riverbend First Nation" in document
-    assert "Submission Date: 2026-10-05" in document
-    assert "A place for youth." in document
-    assert "- Open the hub" in document
-    assert "$250,000" in document
-    assert "Information pending." in document  # sections with no content
-    assert "<dc:title>Riverbend Youth Hub &amp; Café</dc:title>" in core
+def test_export_of_an_empty_form_still_builds(client):
+    response = _export(client, {})
+
+    assert response.status_code == 200
+    text = _document_text(response.content)
+    assert "Untitled Project" in text
+    assert text.count("Not filled in yet.") == 9
+
+
+def test_export_reads_older_saved_forms(client):
+    response = _export(client, {"projectTitle": "Old one", "executiveSummary": None, "alignmentDescription": "Fits."})
+
+    assert response.status_code == 200
+    assert "Fits." in _document_text(response.content)
 
 
 def test_export_ignores_files_sent_with_the_request(client):
     """Files are never pasted into the document, whatever the request carries."""
     response = _export(
         client,
-        {"project_title": "Riverbend Youth Hub", "organization_name": "Riverbend First Nation"},
+        {"projectTitle": "Riverbend Youth Hub"},
         files=[("attachments", ("photo.png", b"\x89PNG", "image/png"))],
     )
 
     assert response.status_code == 200
-    with ZipFile(BytesIO(response.content)) as docx:
-        document = docx.read("word/document.xml").decode()
-    assert "photo.png" not in document
-    assert "base64" not in document
+    assert "photo.png" not in _document_text(response.content)
 
 
-def test_export_rejects_a_payload_missing_required_fields(client):
-    response = _export(client, {"projectTitle": "Wrong naming"})
+def test_export_rejects_a_form_with_the_wrong_shape(client):
+    response = _export(client, {"projectTitle": "Riverbend", "milestones": "not a list"})
 
     assert response.status_code == 400
-    assert "project_title" in response.json()["detail"]
+    assert "milestones" in response.json()["detail"]
+
