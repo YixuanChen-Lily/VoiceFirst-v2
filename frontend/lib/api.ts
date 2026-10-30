@@ -211,16 +211,15 @@ export async function synthesizeSpeech(
 
 export async function exportProposalDoc(
   payload: ProposalPayload,
-  attachments: File[],
-  /** A saved proposal's stored files are listed in the export. */
+  /** A saved proposal's attachments are listed by name in the document. */
   proposalId?: string | null,
+  /** True returns a .zip of the document plus each attachment as its own file. */
+  includeFiles = false,
 ): Promise<Blob> {
   const formData = new FormData();
   formData.append('payload', JSON.stringify(serializeProposalPayload(payload)));
-  attachments.forEach((file) => {
-    formData.append('attachments', file, file.name);
-  });
   if (proposalId) formData.append('proposal_id', proposalId);
+  if (includeFiles) formData.append('include_files', 'true');
 
   const response = await apiFetch('/proposals/export', {
     method: 'POST',

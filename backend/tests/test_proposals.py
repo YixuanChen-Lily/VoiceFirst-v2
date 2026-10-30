@@ -211,22 +211,19 @@ def test_export_builds_a_docx(client):
     assert "<dc:title>Riverbend Youth Hub &amp; Café</dc:title>" in core
 
 
-def test_export_includes_attachments(client):
+def test_export_ignores_files_sent_with_the_request(client):
+    """Files are never pasted into the document, whatever the request carries."""
     response = _export(
         client,
         {"project_title": "Riverbend Youth Hub", "organization_name": "Riverbend First Nation"},
-        files=[
-            ("attachments", ("notes.txt", b"Meeting notes", "text/plain")),
-            ("attachments", ("photo.png", b"\x89PNG", "image/png")),
-        ],
+        files=[("attachments", ("photo.png", b"\x89PNG", "image/png"))],
     )
 
     assert response.status_code == 200
     with ZipFile(BytesIO(response.content)) as docx:
         document = docx.read("word/document.xml").decode()
-    assert "Attachment: notes.txt (0.0 KB)" in document
-    assert "Meeting notes" in document
-    assert "Binary file (base64 encoded):" in document
+    assert "photo.png" not in document
+    assert "base64" not in document
 
 
 def test_export_rejects_a_payload_missing_required_fields(client):

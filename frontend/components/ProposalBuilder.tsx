@@ -14,7 +14,8 @@ import { AttachmentsSection } from './sections/AttachmentsSection';
 import { ProgressTracker } from './ProgressTracker';
 import { AIChatPanel } from './chat/AIChatPanel';
 import { AppMark } from './brand/AppMark';
-import { FileDown, ArrowLeft, MessageCircle, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { DownloadMenu } from './proposals/DownloadMenu';
+import { ArrowLeft, MessageCircle, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useProposal } from '../context/ProposalContext';
 import { exportProposalDoc, type ProposalPayload } from '../lib/api';
 import { STEP_NAMES } from '../lib/proposalSteps';
@@ -90,21 +91,24 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
     URL.revokeObjectURL(url);
   };
 
-  const handleExport = async () => {
+  const handleExport = async (includeFiles: boolean) => {
     setIsExporting(true);
     setSubmitStatus(null);
 
     try {
       const payload = buildPayload();
-      const attachments: File[] = existingDraft ? [existingDraft] : [];
-      const blob = await exportProposalDoc(payload, attachments, proposalId);
+      const blob = await exportProposalDoc(payload, proposalId, includeFiles);
       const safeTitle = payload.projectTitle
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '') || 'proposal';
-      const filename = `${safeTitle}-draft-proposal.docx`;
+      const filename = `${safeTitle}-draft-proposal.${includeFiles ? 'zip' : 'docx'}`;
       downloadBlob(blob, filename);
-      setSubmitStatus('Your Word document is downloading.');
+      setSubmitStatus(
+        includeFiles
+          ? 'Your Word document and attachments are downloading as a .zip file.'
+          : 'Your Word document is downloading.',
+      );
     } catch (error) {
       setSubmitStatus(
         error instanceof Error
@@ -182,19 +186,13 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
           <MessageCircle className="w-5 h-5" aria-hidden="true" />
           Assistant
         </button>
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={isSaving || isExporting}
-          className="hidden sm:inline-flex items-center gap-2 min-h-[46px] px-5 rounded-[10px] bg-forest hover:bg-forest-dark text-white font-bold transition-colors disabled:opacity-60"
-        >
-          {isExporting ? (
-            <Loader2 className="w-[18px] h-[18px] animate-spin" aria-hidden="true" />
-          ) : (
-            <FileDown className="w-[18px] h-[18px]" aria-hidden="true" />
-          )}
-          {isExporting ? 'Preparing…' : 'Download as Word'}
-        </button>
+        <DownloadMenu
+          className="hidden sm:block"
+          proposalId={proposalId}
+          isExporting={isExporting}
+          disabled={isSaving}
+          onDownload={handleExport}
+        />
       </header>
 
       {submitStatus && (
@@ -245,15 +243,13 @@ export function ProposalBuilder({ onBack, existingDraft }: ProposalBuilderProps)
                     Next: {nextName}
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={handleExport}
-                    disabled={isSaving || isExporting}
-                    className="inline-flex items-center gap-2 min-h-12 px-5 rounded-[10px] bg-forest hover:bg-forest-dark text-white font-bold transition-colors disabled:opacity-60"
-                  >
-                    <FileDown className="w-[18px] h-[18px]" aria-hidden="true" />
-                    {isExporting ? 'Preparing…' : 'Download as Word'}
-                  </button>
+                  <DownloadMenu
+                    openUpward
+                    proposalId={proposalId}
+                    isExporting={isExporting}
+                    disabled={isSaving}
+                    onDownload={handleExport}
+                  />
                 )}
               </div>
             </div>
