@@ -1,7 +1,8 @@
 """
-Caps for guests. Guests sign in without an email, so anyone with the link can be one;
-the caps keep what a single guest can spend on the AI services and storage small.
-Signed-in users with an email are not capped.
+Caps for everyone without full access: guests, who sign in without an email, and any
+email account that isn't on the full-access or admin list. Guests need Supabase sign-ups
+switched on, which also lets people create email accounts outside the website, so the
+caps follow the lists rather than how someone signed in.
 """
 
 from functools import lru_cache
@@ -32,22 +33,23 @@ def get_usage_store() -> UsageStore:
 
 
 async def use(user: User, action: str) -> None:
-    """Count one use of `action` for a guest, or refuse with a 429 once their limit is reached."""
-    if not user.is_guest:
+    """Count one use of `action` for a capped user, or refuse with a 429 once their limit is reached."""
+    if user.has_full_access:
         return
     if not database.is_configured():
-        raise HTTPException(status_code=503, detail="Guest access is not available on this server.")
+        raise HTTPException(status_code=503, detail="Limited access is not available on this server.")
     limit, name = GUEST_LIMITS[action]
     allowed = await run_in_threadpool(get_usage_store().try_use, user.id, action, limit)
     if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Guests can use up to {limit} {name}. Sign in with an email to keep going.",
-        )
+        if user.is_guest:
+            detail = f"Guests can use up to {limit} {name}. Sign in with an email to keep going."
+        else:
+            detail = f"Your account can use up to {limit} {name}. Ask an administrator for full access."
+        raise HTTPException(status_code=429, detail=detail)
 
 
 def guest_limit(action: str) -> Callable:
-    """A route dependency that counts one use of `action` for guests before the route runs."""
+    """A route dependency that counts one use of `action` for capped users before the route runs."""
 
     async def dependency(user: User = Depends(get_current_user)) -> User:
         await use(user, action)
@@ -57,6 +59,7 @@ def guest_limit(action: str) -> Callable:
 
 
 def check_upload_size(user: User, size: int) -> None:
-    if user.is_guest and size > GUEST_MAX_UPLOAD_BYTES:
+    if not user.has_full_access and size > GUEST_MAX_UPLOAD_BYTES:
         limit_mb = GUEST_MAX_UPLOAD_BYTES // (1024 * 1024)
-        raise HTTPException(status_code=413, detail=f"Guests can upload files up to {limit_mb} MB.")
+        who = "Guests" if user.is_guest else "Your account"
+        raise HTTPException(status_code=413, detail=f"{who} can upload files up to {limit_mb} MB.")

@@ -28,9 +28,6 @@ function friendlyError(message: string): string {
   if (/signups? not allowed/i.test(message)) {
     return "That email isn't registered. Ask an administrator to invite you.";
   }
-  if (/anonymous sign-ins are disabled/i.test(message)) {
-    return 'Guest access is turned off at the moment. Sign in with your email instead.';
-  }
   if (/rate limit|security purposes/i.test(message)) {
     return 'Too many sign-in attempts. Wait a few minutes and try again.';
   }
@@ -99,7 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const continueAsGuest = useCallback(async () => {
     if (!supabase) return 'Sign-in is not configured.';
     const { error } = await supabase.auth.signInAnonymously();
-    return error ? friendlyError(error.message) : null;
+    if (!error) return null;
+    // Supabase refuses guests when anonymous sign-ins or sign-ups are switched off.
+    if (/anonymous sign-ins are disabled|signups? not allowed/i.test(error.message)) {
+      return 'Guest access is turned off at the moment. Sign in with your email instead.';
+    }
+    return friendlyError(error.message);
   }, []);
 
   const signOut = useCallback(async () => {

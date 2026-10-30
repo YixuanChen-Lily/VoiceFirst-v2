@@ -1,4 +1,7 @@
-"""Guests (signed in without an email) get capped use of the features that cost money."""
+"""
+Guests (signed in without an email), and email accounts not on the full-access list,
+get capped use of the features that cost money.
+"""
 
 import pytest
 
@@ -7,8 +10,9 @@ from backend.app.services import guest_limits
 
 from .conftest import STAFF
 
-GUEST = User(id="guest-1", email="", is_admin=False, is_guest=True)
-OTHER_GUEST = User(id="guest-2", email="", is_admin=False, is_guest=True)
+GUEST = User(id="guest-1", email="", is_admin=False, is_guest=True, has_full_access=False)
+OTHER_GUEST = User(id="guest-2", email="", is_admin=False, is_guest=True, has_full_access=False)
+UNLISTED = User(id="user-x", email="someone@elsewhere.com", is_admin=False, has_full_access=False)
 
 
 class FakeUsageStore:
@@ -53,7 +57,16 @@ def test_each_guest_has_their_own_count(client, sign_in, usage):
     assert _check_draft(client).status_code == 400
 
 
-def test_people_who_signed_in_with_an_email_are_not_capped(client, sign_in, usage):
+def test_an_email_account_not_on_the_list_is_capped_too(client, sign_in, usage):
+    sign_in(UNLISTED)
+
+    assert [_check_draft(client).status_code for _ in range(3)] == [400, 400, 429]
+    assert _check_draft(client).json()["detail"] == (
+        "Your account can use up to 2 draft checks. Ask an administrator for full access."
+    )
+
+
+def test_people_with_full_access_are_not_capped(client, sign_in, usage):
     sign_in(STAFF)
 
     assert [_check_draft(client).status_code for _ in range(4)] == [400] * 4

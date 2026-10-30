@@ -22,8 +22,10 @@ class User:
     id: str
     email: str
     is_admin: bool
-    # Signed in with "Continue as guest": no email, and capped use of the AI features.
+    # Signed in with "Continue as guest", without an email.
     is_guest: bool = False
+    # Unlimited use. Without it, the AI features and uploads are capped (services/guest_limits.py).
+    has_full_access: bool = True
 
 
 # Used when AUTH_DISABLED is set, so local development works without signing in.
@@ -79,9 +81,15 @@ def verify_token(token: str) -> User:
         raise HTTPException(status_code=503, detail="Sign-in could not be checked right now. Try again.") from exc
 
     if claims.get("is_anonymous"):
-        return User(id=claims["sub"], email="", is_admin=False, is_guest=True)
+        return User(id=claims["sub"], email="", is_admin=False, is_guest=True, has_full_access=False)
     email = (claims.get("email") or "").lower()
-    return User(id=claims["sub"], email=email, is_admin=email in settings.LIBRARY_ADMIN_EMAILS)
+    is_admin = email in settings.LIBRARY_ADMIN_EMAILS
+    return User(
+        id=claims["sub"],
+        email=email,
+        is_admin=is_admin,
+        has_full_access=is_admin or email in settings.FULL_ACCESS_EMAILS,
+    )
 
 
 def get_current_user(authorization: Optional[str] = Header(default=None)) -> User:
