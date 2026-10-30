@@ -13,8 +13,12 @@ interface AuthContextType {
   isSignedIn: boolean;
   /** True when the signed-in user may add and remove library documents. */
   isAdmin: boolean;
+  /** Signed in with "Continue as guest": no email, and capped use of the AI features. */
+  isGuest: boolean;
   /** Email a one-time sign-in link. Resolves to an error message, or null on success. */
   sendSignInLink: (email: string) => Promise<string | null>;
+  /** Sign in without an email. Resolves to an error message, or null on success. */
+  continueAsGuest: () => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -24,8 +28,11 @@ function friendlyError(message: string): string {
   if (/signups? not allowed/i.test(message)) {
     return "That email isn't registered. Ask an administrator to invite you.";
   }
+  if (/anonymous sign-ins are disabled/i.test(message)) {
+    return 'Guest access is turned off at the moment. Sign in with your email instead.';
+  }
   if (/rate limit|security purposes/i.test(message)) {
-    return 'Too many sign-in emails were requested. Wait a few minutes and try again.';
+    return 'Too many sign-in attempts. Wait a few minutes and try again.';
   }
   return message;
 }
@@ -89,6 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? friendlyError(error.message) : null;
   }, []);
 
+  const continueAsGuest = useCallback(async () => {
+    if (!supabase) return 'Sign-in is not configured.';
+    const { error } = await supabase.auth.signInAnonymously();
+    return error ? friendlyError(error.message) : null;
+  }, []);
+
   const signOut = useCallback(async () => {
     await supabase?.auth.signOut();
   }, []);
@@ -100,10 +113,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: session?.user.email ?? null,
       isSignedIn: Boolean(session),
       isAdmin,
+      isGuest: Boolean(session?.user.is_anonymous),
       sendSignInLink,
+      continueAsGuest,
       signOut,
     }),
-    [isAdmin, isLoading, session, sendSignInLink, signOut],
+    [isAdmin, isLoading, session, sendSignInLink, continueAsGuest, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

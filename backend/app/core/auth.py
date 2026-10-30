@@ -22,6 +22,8 @@ class User:
     id: str
     email: str
     is_admin: bool
+    # Signed in with "Continue as guest": no email, and capped use of the AI features.
+    is_guest: bool = False
 
 
 # Used when AUTH_DISABLED is set, so local development works without signing in.
@@ -76,6 +78,8 @@ def verify_token(token: str) -> User:
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=503, detail="Sign-in could not be checked right now. Try again.") from exc
 
+    if claims.get("is_anonymous"):
+        return User(id=claims["sub"], email="", is_admin=False, is_guest=True)
     email = (claims.get("email") or "").lower()
     return User(id=claims["sub"], email=email, is_admin=email in settings.LIBRARY_ADMIN_EMAILS)
 
