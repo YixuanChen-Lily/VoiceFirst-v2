@@ -113,10 +113,6 @@ export function LandingPage({ onStartFromScratch, onUploadDraft, onOpenLibrary, 
             ))}
           </ol>
         </section>
-
-        <footer className="pt-6 border-t border-line text-base text-ink-muted">
-          Made for small Northern and Indigenous communities.
-        </footer>
       </main>
     </div>
   );
