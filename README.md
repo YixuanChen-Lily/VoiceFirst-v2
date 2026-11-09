@@ -22,7 +22,7 @@ VoiceFirst helps communities write grant proposals. You answer questions by voic
 ```
 frontend/   Next.js 14 + Tailwind, exported as a static site
 backend/    FastAPI app that serves the /api endpoints
-guidelines/ Design notes
+docs/       Screenshots for this README
 ```
 
 - **Chat:** each turn runs through a small [LangGraph](https://github.com/langchain-ai/langgraph) graph: *classify → retrieve → answer → fill fields → speak*. A TypeSafe Jev model scores whether the turn needs real writing or advice. Turns that do go to a stronger OpenAI model, and the rest go to a faster one.
