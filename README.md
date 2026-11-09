@@ -1,28 +1,45 @@
-# Proposal Builder Monorepo
+# VoiceFirst
 
-This repository now ships with a Next.js frontend and a FastAPI backend. The previous single-page React implementation has been migrated into the `frontend` package while all server responsibilities live under `backend`.
+**Build a funding proposal by talking it through.**
 
-## Project layout
+VoiceFirst helps communities write grant proposals. You answer questions by voice or by typing, and the assistant turns your answers into a clear, complete proposal that you can download as a Word document.
+
+<img width="1867" height="883" alt="Draft analysis screen showing scores for an uploaded proposal" src="https://github.com/user-attachments/assets/63d72fa4-293b-4c4d-9f2c-f84f953fdbd8" />
+
+## What it does
+
+- **Voice or text conversation.** The assistant asks one question at a time. You can speak your answers and hear its replies, powered by ElevenLabs speech-to-text and text-to-speech.
+- **Guided proposal builder.** Twelve steps cover the usual sections of a proposal: cover page, summary, community, need, project, plan and timeline, budget, results, fit with the funder, risks and attachments. Details you give in the chat are filled into the right fields.
+- **Draft check.** Upload a proposal you've already written. You get a score and feedback for each section, and you can use it to fill in the builder.
+- **Answers grounded in your documents.** Upload community plans or a funder's guidelines. The assistant looks up the relevant passages and cites them in its replies. There is also a shared library that admins manage.
+- **Saved proposals and files.** Your work saves as you go and only you can see it. You can export a proposal as a `.docx` file, or as a zip that includes its attachments.
+- **Sign-in and guest access.** Users sign in with an email link through Supabase Auth. Guests and accounts that aren't on the full-access list can use the app with usage limits.
+
+## How it works
 
 ```
-frontend/       # Next.js 14 + Tailwind UI
-backend/        # FastAPI application exposes /api endpoints
-guidelines/     # Existing documentation and assets
+frontend/   Next.js 14 + Tailwind, exported as a static site
+backend/    FastAPI app that serves the /api endpoints
+guidelines/ Design notes
 ```
 
-## Getting started
+- **Chat:** each turn runs through a small [LangGraph](https://github.com/langchain-ai/langgraph) graph: *classify → retrieve → answer → fill fields → speak*. A TypeSafe Jev model scores whether the turn needs real writing or advice. Turns that do go to a stronger OpenAI model, and the rest go to a faster one.
+- **Retrieval:** documents are split into chunks, embedded with OpenAI, and stored in Supabase Postgres with `pgvector`. The original files are kept in Supabase Storage.
+- **Storage:** proposals, files and usage counts live in the same Postgres database. The tables are created automatically on first start.
 
-### Frontend
+## Running it locally
+
+You'll need Python 3.12, Node.js 20, and accounts with OpenAI, ElevenLabs and Supabase.
+
+### 1. Configure
 
 ```bash
-cd frontend
-npm install
-npm run dev
+cp .env.example .env
 ```
 
-By default the development server runs on `http://localhost:3000`. Configure `NEXT_PUBLIC_API_BASE_URL` in a `.env.local` file if the API is not reachable at `http://127.0.0.1:8000/api`, or change `NEXT_PUBLIC_DEFAULT_API_BASE_URL` if you want to adjust the fallback URL baked into the client bundle.
+Fill in the keys in `.env`. The backend reads this file on startup. For local development you can set `AUTH_DISABLED=true` to use the API without signing in. Never set it on a deployed server.
 
-### Backend
+### 2. Backend
 
 ```bash
 cd backend
@@ -32,52 +49,52 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-The FastAPI server listens on `http://127.0.0.1:8000`. CORS is pre-configured for the local Next.js dev server.
+The API runs at `http://127.0.0.1:8000`, and the interactive docs are at `http://127.0.0.1:8000/docs`.
 
-### Environment configuration
+### 3. Frontend
 
-Copy `.env.example` to `.env` at the repository root and fill in your keys. The backend loads this file automatically on startup.
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-Required secrets:
+Open `http://localhost:3000`. If the API isn't at `http://127.0.0.1:8000/api`, set `NEXT_PUBLIC_API_BASE_URL` in `frontend/.env.local`.
 
-- `OPENAI_API_KEY` – used by the backend to call the Chat Completions API.
-- `ELEVENLABS_API_KEY` – used for speech-to-text and text-to-speech.
-- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_DB_URL` – the knowledge base: uploaded documents are stored in Supabase Storage and indexed in its Postgres database (`pgvector`). Without them the `/api/documents` endpoints return 503 and the rest of the app works as before. The same settings store each user's own files (`/api/files`, and `/api/proposals/{id}/files` for the files a proposal uses); a file is only read and indexed while a proposal lets the assistant use it.
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` – used by the website to sign users in with Supabase Auth (email link). Both are public values.
-- `LIBRARY_ADMIN_EMAILS` – comma-separated emails allowed to add and remove library documents.
-- `AUTH_DISABLED` – set to `true` for local development to use the API without signing in. Never set it on a deployed backend.
-- `NEXT_PUBLIC_API_BASE_URL` – optional override for the frontend.
-- `NEXT_PUBLIC_DEFAULT_API_BASE_URL` – fallback base URL used when no override is set (defaults to `http://127.0.0.1:8000/api`).
-- `CORS_ALLOW_ORIGINS` – optional comma-separated list of frontend origins allowed to call the backend (defaults to local ports 3000 and 3002).
+### Tests
 
-Optional tuning variables (set in the backend environment):
+```bash
+pip install -r backend/requirements-dev.txt
+python -m pytest
+```
 
-- `OPENAI_CHAT_MODEL` (default `gpt-6-luna`) — chat and field extraction
-- `OPENAI_ANALYSIS_MODEL` (default `gpt-6.1-sol`) — draft analysis
-- `OPENAI_COMPLEX_CHAT_MODEL` (default `gpt-6.1-sol`) — chat turns the router judges to need writing or advice
-- `TYPESAFE_API_KEY` — enables the Jev chat router; without it every chat turn uses `OPENAI_CHAT_MODEL`
-- `TYPESAFE_ROUTER_MODEL` (default `jev-1.13.0`) and `CHAT_ROUTER_THRESHOLD` (default `0.5`)
-- `EMBEDDING_MODEL` (default `text-embedding-3-small`), `CHUNK_SIZE` (default `1000`), `CHUNK_OVERLAP` (default `150`) — knowledge base indexing; changing them requires re-indexing documents
-- `ELEVENLABS_VOICE_ID` (default `EXAVITQu4vr4xnSDxMaL`, the "Sarah" voice; must be a voice ID, not a name)
-- `ELEVENLABS_TTS_MODEL_ID` / `ELEVENLABS_STT_MODEL_ID`
-- `ELEVENLABS_TTS_BASE_URL` (default `https://api.elevenlabs.io/v1/text-to-speech`)
-- `ELEVENLABS_STT_ENDPOINT` (default `https://api.elevenlabs.io/v1/speech-to-text`)
+The knowledge-base tests also need a Postgres database with `pgvector`, set in `TEST_DATABASE_URL`. Without it they are skipped. CI runs them against a temporary `pgvector/pgvector` container.
 
-## Frontend ↔ Backend integration points
+## Configuration
 
-- Draft uploads now call `POST /api/proposals/analyze` and render the response inside the Draft Analysis page.
-- Save/Export actions in the builder invoke `POST /api/proposals`, which currently returns a generated identifier that you can replace with database persistence.
-- The AI chat drawer sends user turns to `POST /api/assist/chat`, triggers ElevenLabs speech responses, and uses `POST /api/assist/stt` when the microphone button is pressed.
-- Shared API helpers live in `frontend/lib/api.ts`; extend this module as new endpoints are introduced.
+| Variable | Purpose |
+| --- | --- |
+| `OPENAI_API_KEY` | Chat, draft analysis and embeddings |
+| `ELEVENLABS_API_KEY` | Speech-to-text and text-to-speech |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_DB_URL` | File storage and the Postgres database. Without them, the document and file endpoints return 503. |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Sign-in on the website (public values) |
+| `LIBRARY_ADMIN_EMAILS` | Emails that can manage the shared library |
+| `FULL_ACCESS_EMAILS` | Emails that have no usage limits |
+| `TYPESAFE_API_KEY` | Turns on the chat router. Without it, every turn uses `OPENAI_CHAT_MODEL`. |
+| `CORS_ALLOW_ORIGINS` | Frontend origins allowed to call the API |
+| `AUTH_DISABLED` | `true` skips sign-in. For local use only. |
 
-## Next steps
+Models, voice, chunking and retrieval can all be tuned. See [`.env.example`](.env.example) for every option and its default.
 
-- Replace the placeholder business logic inside `backend/app/api/routes/proposals.py` with your AI/RAG pipeline and storage layer.
-- Persist uploaded files in object storage (e.g., S3) and surface asynchronous job progress through WebSockets or polling as needed.
-- Harden error handling and add unit/integration tests for both apps once the data model stabilises.
-- Experiment with different OpenAI or ElevenLabs models/voices by adjusting the environment variables noted above.
+## Deployment
 
-## Demo
-Uploading an existing proposal gives heuristics score. 
-<img width="1867" height="883" alt="image" src="https://github.com/user-attachments/assets/63d72fa4-293b-4c4d-9f2c-f84f953fdbd8" />
+GitHub Actions deploys on every push to `main`:
 
+- The backend goes to Azure App Service (`.github/workflows/main_voice-first-backend.yml`).
+- The frontend is built as a static export and goes to Azure Static Web Apps (`.github/workflows/frontend-static-web-app.yml`).
+
+`.github/workflows/ci.yml` runs the backend tests and the frontend type check and build on every pull request.
+
+## License
+
+[MIT](LICENSE). See [Attributions.md](Attributions.md) for third-party components.
