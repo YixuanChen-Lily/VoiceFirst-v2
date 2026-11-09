@@ -4,7 +4,9 @@
 
 VoiceFirst helps communities write grant proposals. You answer questions by voice or by typing, and the assistant turns your answers into a clear, complete proposal that you can download as a Word document.
 
-<img width="1867" height="883" alt="Draft analysis screen showing scores for an uploaded proposal" src="https://github.com/user-attachments/assets/63d72fa4-293b-4c4d-9f2c-f84f953fdbd8" />
+![Home page: start a new proposal or improve a draft you already have](docs/images/home.png)
+
+![Proposal builder with the assistant panel open beside the first step](docs/images/builder.png)
 
 ## What it does
 
