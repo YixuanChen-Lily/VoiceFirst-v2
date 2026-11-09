@@ -213,3 +213,11 @@ frontend/.next/
 
 frontend/out/
 frontend/tsconfig.tsbuildinfo
+
+# Local tool settings and notes that should never be published
+.DS_Store
+.agents/
+.claude/
+.mcp.json
+skills-lock.json
+Claude outputs/
